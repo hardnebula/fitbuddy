@@ -1,26 +1,36 @@
 import { Tabs } from 'expo-router';
-import { Platform, Text, StyleSheet } from 'react-native';
+import { Platform, StyleSheet } from 'react-native';
+import Svg, { Path } from 'react-native-svg';
+import * as Haptics from 'expo-haptics';
 import { Theme } from '../../constants/Theme';
 
 export default function TabsLayout() {
+  const handleTabPress = () => {
+    // Haptic feedback al cambiar de tab
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  };
+
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: Theme.colors.primary,
-        tabBarInactiveTintColor: Theme.colors.textTertiary,
+        tabBarActiveTintColor: '#8B5CF6',
+        tabBarInactiveTintColor: '#999999',
         tabBarStyle: {
-          backgroundColor: Theme.colors.secondary,
-          borderTopColor: Theme.colors.border,
+          backgroundColor: '#FFFFFF',
+          borderTopColor: '#E5E5E5',
           borderTopWidth: 1,
           paddingTop: Platform.OS === 'ios' ? 8 : 4,
           paddingBottom: Platform.OS === 'ios' ? 20 : 8,
           height: Platform.OS === 'ios' ? 88 : 60,
         },
         tabBarLabelStyle: {
-          fontSize: Theme.typography.fontSize.xs,
-          fontWeight: Theme.typography.fontWeight.medium,
+          fontSize: 0,
         },
+        tabBarShowLabel: false,
+      }}
+      screenListeners={{
+        tabPress: handleTabPress,
       }}
     >
       <Tabs.Screen
@@ -50,27 +60,63 @@ export default function TabsLayout() {
           ),
         }}
       />
+      <Tabs.Screen
+        name="settings"
+        options={{
+          href: null,
+        }}
+      />
     </Tabs>
   );
 }
 
-// Simple icon component using emojis (you can replace with react-native-vector-icons or expo-icons)
+// Minimalist SVG icons for tabs - ultra simple line icons
 function TabIcon({ name, color, size }: { name: string; color: string; size: number }) {
-  const icons: Record<string, string> = {
-    home: '🏠',
-    groups: '👥',
-    profile: '👤',
-  };
-  return (
-    <Text style={[styles.icon, { fontSize: size }]}>
-      {icons[name] || '•'}
-    </Text>
-  );
+  const iconSize = size * 0.8;
+  const strokeWidth = 2;
+  
+  if (name === 'home') {
+    return (
+      <Svg width={iconSize} height={iconSize} viewBox="0 0 24 24" fill="none">
+        <Path
+          d="m2.25 12 8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25"
+          stroke={color}
+          strokeWidth={strokeWidth}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </Svg>
+    );
+  }
+  
+  if (name === 'groups') {
+    return (
+      <Svg width={iconSize} height={iconSize} viewBox="0 0 24 24" fill="none">
+        <Path
+          d="M18 18.72a9.094 9.094 0 0 0 3.741-.479 3 3 0 0 0-4.682-2.72m.94 3.198.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0 1 12 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 0 1 6 18.719m12 0a5.971 5.971 0 0 0-.941-3.197m0 0A5.995 5.995 0 0 0 12 12.75a5.995 5.995 0 0 0-5.058 2.772m0 0a3 3 0 0 0-4.681 2.72 8.986 8.986 0 0 0 3.74.477m.94-3.197a5.971 5.971 0 0 0-.94 3.197M15 6.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm6 3a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Zm-13.5 0a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Z"
+          stroke={color}
+          strokeWidth={strokeWidth}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </Svg>
+    );
+  }
+  
+  if (name === 'profile') {
+    return (
+      <Svg width={iconSize} height={iconSize} viewBox="0 0 24 24" fill="none">
+        <Path
+          d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z"
+          stroke={color}
+          strokeWidth={strokeWidth}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </Svg>
+    );
+  }
+  
+  return null;
 }
-
-const styles = StyleSheet.create({
-  icon: {
-    textAlign: 'center',
-  },
-});
 

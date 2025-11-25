@@ -4,6 +4,7 @@ import {
   Text,
   StyleSheet,
   ScrollView,
+  Image,
   TouchableOpacity,
 } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -11,6 +12,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Card } from '../../components/Card';
 import { Button } from '../../components/Button';
 import { EmptyState } from '../../components/EmptyState';
+import { ScreenTransition } from '../../components/ScreenTransition';
+import { AnimatedTitle } from '../../components/AnimatedTitle';
 import { Theme } from '../../constants/Theme';
 import { Group } from '../../types';
 
@@ -39,9 +42,15 @@ export default function GroupsScreen() {
 
   if (groups.length === 0) {
     return (
+      <ScreenTransition>
       <SafeAreaView style={styles.container} edges={['top']}>
         <View style={styles.header}>
-          <Text style={styles.title}>Your Groups</Text>
+          <Image 
+            source={require('../../assets/images/Teo and Sirius.png')} 
+            style={styles.logo}
+            resizeMode="contain"
+          />
+          <AnimatedTitle style={styles.title}>Your Groups</AnimatedTitle>
         </View>
         <EmptyState
           message="No groups yet"
@@ -56,10 +65,12 @@ export default function GroupsScreen() {
           />
         </View>
       </SafeAreaView>
+      </ScreenTransition>
     );
   }
 
   return (
+    <ScreenTransition>
     <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView
         style={styles.scrollView}
@@ -67,7 +78,12 @@ export default function GroupsScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.header}>
-          <Text style={styles.title}>Your Groups</Text>
+          <Image 
+            source={require('../../assets/images/Teo and Sirius.png')} 
+            style={styles.logo}
+            resizeMode="contain"
+          />
+          <AnimatedTitle style={styles.title}>Your Groups</AnimatedTitle>
         </View>
 
         {groups.map((group) => (
@@ -104,13 +120,14 @@ export default function GroupsScreen() {
         />
       </ScrollView>
     </SafeAreaView>
+    </ScreenTransition>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Theme.colors.background,
+    backgroundColor: '#FFFFFF',
   },
   scrollView: {
     flex: 1,
@@ -120,15 +137,24 @@ const styles = StyleSheet.create({
     paddingBottom: Theme.spacing.xxl,
   },
   header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Theme.spacing.md,
     marginBottom: Theme.spacing.xl,
   },
+  logo: {
+    width: 50,
+    height: 50,
+    marginRight: Theme.spacing.xs,
+  },
   title: {
-    fontSize: Theme.typography.fontSize['2xl'],
+    fontSize: 28,
     fontWeight: Theme.typography.fontWeight.bold,
-    color: Theme.colors.text,
+    color: '#000000',
   },
   groupCard: {
     marginBottom: Theme.spacing.md,
+    backgroundColor: '#F5F5F5',
   },
   groupHeader: {
     marginBottom: Theme.spacing.md,
@@ -136,12 +162,12 @@ const styles = StyleSheet.create({
   groupName: {
     fontSize: Theme.typography.fontSize.xl,
     fontWeight: Theme.typography.fontWeight.bold,
-    color: Theme.colors.text,
+    color: '#000000',
     marginBottom: Theme.spacing.xs,
   },
   membersCount: {
     fontSize: Theme.typography.fontSize.sm,
-    color: Theme.colors.textSecondary,
+    color: '#999999',
   },
   groupStats: {
     flexDirection: 'row',
@@ -151,13 +177,13 @@ const styles = StyleSheet.create({
   },
   statLabel: {
     fontSize: Theme.typography.fontSize.sm,
-    color: Theme.colors.textSecondary,
+    color: '#666666',
     marginBottom: Theme.spacing.xs,
   },
   statValue: {
     fontSize: Theme.typography.fontSize.base,
     fontWeight: Theme.typography.fontWeight.semibold,
-    color: Theme.colors.accent,
+    color: '#8B5CF6',
   },
   createButton: {
     marginTop: Theme.spacing.lg,

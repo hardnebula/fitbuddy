@@ -14,6 +14,7 @@ import { Button } from '../../components/Button';
 import { Input } from '../../components/Input';
 import { Card } from '../../components/Card';
 import { Avatar } from '../../components/Avatar';
+import { Logo } from '../../components/Logo';
 import { Theme } from '../../constants/Theme';
 
 export default function JoinGroupScreen() {
@@ -48,7 +49,10 @@ export default function JoinGroupScreen() {
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.content}>
-            <Text style={styles.title}>Join Group</Text>
+            <View style={styles.header}>
+              <Logo size={80} style={styles.logo} />
+              <Text style={styles.title}>Join Group</Text>
+            </View>
 
             <Input
               label="Invite Code"
@@ -95,7 +99,7 @@ export default function JoinGroupScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Theme.colors.background,
+    backgroundColor: '#FFFFFF',
   },
   keyboardView: {
     flex: 1,
@@ -107,22 +111,29 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: Theme.spacing.xl,
   },
-  title: {
-    fontSize: Theme.typography.fontSize['2xl'],
-    fontWeight: Theme.typography.fontWeight.bold,
-    color: Theme.colors.text,
+  header: {
+    alignItems: 'center',
     marginBottom: Theme.spacing.xl,
+  },
+  logo: {
+    marginBottom: Theme.spacing.lg,
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: Theme.typography.fontWeight.bold,
+    color: '#000000',
   },
   inputContainer: {
     marginBottom: Theme.spacing.xl,
   },
   previewCard: {
     marginBottom: Theme.spacing.xl,
+    backgroundColor: '#F5F5F5',
   },
   previewTitle: {
     fontSize: Theme.typography.fontSize.md,
     fontWeight: Theme.typography.fontWeight.semibold,
-    color: Theme.colors.text,
+    color: '#000000',
     marginBottom: Theme.spacing.md,
   },
   previewContent: {
@@ -131,7 +142,7 @@ const styles = StyleSheet.create({
   groupName: {
     fontSize: Theme.typography.fontSize.lg,
     fontWeight: Theme.typography.fontWeight.bold,
-    color: Theme.colors.text,
+    color: '#000000',
     marginBottom: Theme.spacing.sm,
   },
   previewRow: {
@@ -141,15 +152,15 @@ const styles = StyleSheet.create({
   },
   previewLabel: {
     fontSize: Theme.typography.fontSize.base,
-    color: Theme.colors.textSecondary,
+    color: '#666666',
   },
   previewValue: {
     fontSize: Theme.typography.fontSize.base,
-    color: Theme.colors.text,
+    color: '#000000',
     fontWeight: Theme.typography.fontWeight.semibold,
   },
   streak: {
-    color: Theme.colors.accent,
+    color: '#8B5CF6',
   },
   joinButton: {
     marginTop: Theme.spacing.lg,

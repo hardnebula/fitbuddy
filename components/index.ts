@@ -6,4 +6,5 @@ export { LoadingSpinner } from './LoadingSpinner';
 export { EmptyState } from './EmptyState';
 export { AnimatedButton } from './AnimatedButton';
 export { StreakBadge } from './StreakBadge';
+export { Logo } from './Logo';
 

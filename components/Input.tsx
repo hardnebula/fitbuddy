@@ -34,7 +34,7 @@ export const Input: React.FC<InputProps> = ({
           error && styles.inputError,
           style,
         ]}
-        placeholderTextColor={Theme.colors.textTertiary}
+        placeholderTextColor="#999999"
         onFocus={(e) => {
           setIsFocused(true);
           props.onFocus?.(e);
@@ -57,22 +57,22 @@ const styles = StyleSheet.create({
   label: {
     fontSize: Theme.typography.fontSize.sm,
     fontWeight: Theme.typography.fontWeight.medium,
-    color: Theme.colors.textSecondary,
+    color: '#666666',
     marginBottom: Theme.spacing.xs,
   },
   input: {
-    backgroundColor: Theme.colors.surface,
+    backgroundColor: '#F5F5F5',
     borderWidth: 1,
-    borderColor: Theme.colors.border,
+    borderColor: '#E5E5E5',
     borderRadius: Theme.borderRadius.md,
     paddingHorizontal: Theme.spacing.md,
     paddingVertical: Theme.spacing.md,
     fontSize: Theme.typography.fontSize.base,
-    color: Theme.colors.text,
+    color: '#000000',
     minHeight: Theme.touchTarget.minHeight,
   },
   inputFocused: {
-    borderColor: Theme.colors.primary,
+    borderColor: '#8B5CF6',
     borderWidth: 2,
   },
   inputError: {

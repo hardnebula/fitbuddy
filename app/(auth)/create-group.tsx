@@ -15,6 +15,7 @@ import * as Clipboard from 'expo-clipboard';
 import { Button } from '../../components/Button';
 import { Input } from '../../components/Input';
 import { Card } from '../../components/Card';
+import { Logo } from '../../components/Logo';
 import { Theme } from '../../constants/Theme';
 
 export default function CreateGroupScreen() {
@@ -56,7 +57,10 @@ export default function CreateGroupScreen() {
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.content}>
-            <Text style={styles.title}>Create Your Group</Text>
+            <View style={styles.header}>
+              <Logo size={80} style={styles.logo} />
+              <Text style={styles.title}>Create Your Group</Text>
+            </View>
 
             <Input
               label="Group Name"
@@ -125,7 +129,7 @@ export default function CreateGroupScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Theme.colors.background,
+    backgroundColor: '#FFFFFF',
   },
   keyboardView: {
     flex: 1,
@@ -137,15 +141,21 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: Theme.spacing.xl,
   },
-  title: {
-    fontSize: Theme.typography.fontSize['2xl'],
-    fontWeight: Theme.typography.fontWeight.bold,
-    color: Theme.colors.text,
+  header: {
+    alignItems: 'center',
     marginBottom: Theme.spacing.xl,
+  },
+  logo: {
+    marginBottom: Theme.spacing.lg,
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: Theme.typography.fontWeight.bold,
+    color: '#000000',
   },
   description: {
     fontSize: Theme.typography.fontSize.base,
-    color: Theme.colors.textSecondary,
+    color: '#666666',
     marginBottom: Theme.spacing.md,
   },
   addMemberContainer: {
@@ -160,29 +170,31 @@ const styles = StyleSheet.create({
   },
   membersCard: {
     marginBottom: Theme.spacing.lg,
+    backgroundColor: '#F5F5F5',
   },
   membersTitle: {
     fontSize: Theme.typography.fontSize.md,
     fontWeight: Theme.typography.fontWeight.semibold,
-    color: Theme.colors.text,
+    color: '#000000',
     marginBottom: Theme.spacing.md,
   },
   memberItem: {
     paddingVertical: Theme.spacing.sm,
     borderBottomWidth: 1,
-    borderBottomColor: Theme.colors.border,
+    borderBottomColor: '#E5E5E5',
   },
   memberText: {
     fontSize: Theme.typography.fontSize.base,
-    color: Theme.colors.textSecondary,
+    color: '#666666',
   },
   inviteCard: {
     marginBottom: Theme.spacing.xl,
+    backgroundColor: '#F5F5F5',
   },
   inviteLabel: {
     fontSize: Theme.typography.fontSize.sm,
     fontWeight: Theme.typography.fontWeight.medium,
-    color: Theme.colors.textSecondary,
+    color: '#666666',
     marginBottom: Theme.spacing.sm,
   },
   inviteCodeContainer: {
@@ -191,12 +203,12 @@ const styles = StyleSheet.create({
   inviteCode: {
     fontSize: Theme.typography.fontSize.xl,
     fontWeight: Theme.typography.fontWeight.bold,
-    color: Theme.colors.primary,
+    color: '#8B5CF6',
     marginBottom: Theme.spacing.xs,
   },
   copyText: {
     fontSize: Theme.typography.fontSize.xs,
-    color: Theme.colors.textTertiary,
+    color: '#999999',
   },
   createButton: {
     marginTop: Theme.spacing.lg,

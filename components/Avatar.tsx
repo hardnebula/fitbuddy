@@ -14,7 +14,7 @@ export const Avatar: React.FC<AvatarProps> = ({
   uri,
   name,
   size = 40,
-  borderColor = Theme.colors.accent,
+  borderColor = '#8B5CF6',
   showBorder = false,
 }) => {
   const initials = name
@@ -58,7 +58,7 @@ export const Avatar: React.FC<AvatarProps> = ({
 const styles = StyleSheet.create({
   container: {
     overflow: 'hidden',
-    backgroundColor: Theme.colors.surface,
+    backgroundColor: '#F5F5F5',
   },
   image: {
     width: '100%',
@@ -67,10 +67,10 @@ const styles = StyleSheet.create({
   initialsContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Theme.colors.primary,
+    backgroundColor: '#8B5CF6',
   },
   initials: {
-    color: Theme.colors.text,
+    color: '#FFFFFF',
     fontWeight: Theme.typography.fontWeight.bold,
   },
 });

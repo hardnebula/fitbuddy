@@ -10,6 +10,7 @@ import {
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button } from '../../components/Button';
+import { Logo } from '../../components/Logo';
 import { Theme } from '../../constants/Theme';
 
 export default function WelcomeScreen() {
@@ -27,6 +28,7 @@ export default function WelcomeScreen() {
         >
           <View style={styles.content}>
             <View style={styles.header}>
+              <Logo size={120} style={styles.logo} />
               <Text style={styles.title}>FitBuddy</Text>
               <Text style={styles.subtitle}>
                 Stay accountable with your group
@@ -83,7 +85,7 @@ export default function WelcomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Theme.colors.background,
+    backgroundColor: '#FFFFFF',
   },
   keyboardView: {
     flex: 1,
@@ -100,15 +102,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: Theme.spacing.xxl * 2,
   },
+  logo: {
+    marginBottom: Theme.spacing.lg,
+  },
   title: {
     fontSize: Theme.typography.fontSize['4xl'],
     fontWeight: Theme.typography.fontWeight.bold,
-    color: Theme.colors.text,
+    color: '#000000',
     marginBottom: Theme.spacing.md,
   },
   subtitle: {
     fontSize: Theme.typography.fontSize.lg,
-    color: Theme.colors.textSecondary,
+    color: '#666666',
     textAlign: 'center',
   },
   actions: {
@@ -123,7 +128,7 @@ const styles = StyleSheet.create({
   },
   socialText: {
     fontSize: Theme.typography.fontSize.sm,
-    color: Theme.colors.textSecondary,
+    color: '#999999',
     marginBottom: Theme.spacing.md,
   },
   socialButtons: {
@@ -137,11 +142,11 @@ const styles = StyleSheet.create({
   footer: {
     marginTop: Theme.spacing.xl,
     fontSize: Theme.typography.fontSize.xs,
-    color: Theme.colors.textSecondary,
+    color: '#999999',
     textAlign: 'center',
   },
   link: {
-    color: Theme.colors.primary,
+    color: '#8B5CF6',
   },
 });
 

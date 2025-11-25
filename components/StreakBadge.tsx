@@ -47,9 +47,11 @@ export const StreakBadge: React.FC<StreakBadgeProps> = ({
     };
   });
 
+  const textSizeStyle = size === 'small' ? styles.textSmall : size === 'large' ? styles.textLarge : styles.textMedium;
+  
   const textStyle = [
     styles.text,
-    styles[`text${size.charAt(0).toUpperCase() + size.slice(1)}`],
+    textSizeStyle,
   ];
 
   return (
@@ -63,10 +65,14 @@ export const StreakBadge: React.FC<StreakBadgeProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    ...Theme.shadows.glow,
+    shadowColor: '#8B5CF6',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.5,
+    shadowRadius: 12,
+    elevation: 8,
   },
   text: {
-    color: Theme.colors.accent,
+    color: '#8B5CF6',
     fontWeight: Theme.typography.fontWeight.bold,
   },
   textSmall: {
