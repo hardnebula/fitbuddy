@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -14,7 +14,9 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Theme } from '../constants/Theme';
 import { useTheme } from '../contexts/ThemeContext';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+const CARD_WIDTH = SCREEN_WIDTH * 0.75;
+const CARD_HEIGHT = CARD_WIDTH * 1.4;
 
 interface BadgeCardProps {
   visible: boolean;
@@ -30,57 +32,106 @@ interface BadgeCardProps {
 }
 
 export const BadgeCard: React.FC<BadgeCardProps> = ({ visible, onClose, badge }) => {
-  const { colors, isDark } = useTheme();
-  const rotateAnim = useRef(new Animated.Value(0)).current;
+  const { colors } = useTheme();
+  const rotateX = useRef(new Animated.Value(0)).current;
+  const rotateY = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(1)).current;
+  const shineX = useRef(new Animated.Value(0.5)).current;
+  const shineY = useRef(new Animated.Value(0.5)).current;
+  const [isPressed, setIsPressed] = useState(false);
 
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: () => true,
-      onPanResponderMove: (_, gestureState) => {
-        // Rotate based on horizontal movement
-        const rotation = gestureState.dx / SCREEN_WIDTH;
-        rotateAnim.setValue(rotation);
-      },
-      onPanResponderRelease: (_, gestureState) => {
-        // Snap back to original position or flip
-        const shouldFlip = Math.abs(gestureState.dx) > SCREEN_WIDTH * 0.3;
-        
-        Animated.spring(rotateAnim, {
-          toValue: shouldFlip ? (gestureState.dx > 0 ? 1 : -1) : 0,
+      onPanResponderGrant: () => {
+        setIsPressed(true);
+        Animated.spring(scaleAnim, {
+          toValue: 1.05,
           useNativeDriver: true,
-          tension: 50,
-          friction: 7,
-        }).start(() => {
-          if (shouldFlip) {
-            // Reset after flip
-            setTimeout(() => {
-              rotateAnim.setValue(0);
-            }, 100);
-          }
-        });
+          tension: 300,
+          friction: 10,
+        }).start();
+      },
+      onPanResponderMove: (evt, gestureState) => {
+        // Calculate tilt based on touch position relative to card center
+        const touchX = gestureState.moveX - (SCREEN_WIDTH / 2);
+        const touchY = gestureState.moveY - (SCREEN_HEIGHT / 2);
+        
+        // Normalize to -1 to 1 range and apply max rotation of 25 degrees
+        const tiltX = (touchY / (CARD_HEIGHT / 2)) * -25;
+        const tiltY = (touchX / (CARD_WIDTH / 2)) * 25;
+        
+        rotateX.setValue(Math.max(-25, Math.min(25, tiltX)));
+        rotateY.setValue(Math.max(-25, Math.min(25, tiltY)));
+        
+        // Update shine position (0 to 1)
+        const normalizedX = (touchX / (CARD_WIDTH / 2) + 1) / 2;
+        const normalizedY = (touchY / (CARD_HEIGHT / 2) + 1) / 2;
+        shineX.setValue(Math.max(0, Math.min(1, normalizedX)));
+        shineY.setValue(Math.max(0, Math.min(1, normalizedY)));
+      },
+      onPanResponderRelease: () => {
+        setIsPressed(false);
+        // Animate back to neutral position
+        Animated.parallel([
+          Animated.spring(rotateX, {
+            toValue: 0,
+            useNativeDriver: true,
+            tension: 100,
+            friction: 8,
+          }),
+          Animated.spring(rotateY, {
+            toValue: 0,
+            useNativeDriver: true,
+            tension: 100,
+            friction: 8,
+          }),
+          Animated.spring(scaleAnim, {
+            toValue: 1,
+            useNativeDriver: true,
+            tension: 100,
+            friction: 8,
+          }),
+          Animated.spring(shineX, {
+            toValue: 0.5,
+            useNativeDriver: false,
+            tension: 100,
+            friction: 8,
+          }),
+          Animated.spring(shineY, {
+            toValue: 0.5,
+            useNativeDriver: false,
+            tension: 100,
+            friction: 8,
+          }),
+        ]).start();
       },
     })
   ).current;
 
-  const rotateInterpolate = rotateAnim.interpolate({
-    inputRange: [-1, 0, 1],
-    outputRange: ['-180deg', '0deg', '180deg'],
+  const rotateXDeg = rotateX.interpolate({
+    inputRange: [-25, 25],
+    outputRange: ['-25deg', '25deg'],
   });
 
-  const rarityColors: Record<string, [string, string]> = {
-    common: ['#94A3B8', '#64748B'],
-    rare: ['#3B82F6', '#2563EB'],
-    epic: ['#A855F7', '#7C3AED'],
-    legendary: ['#F59E0B', '#D97706'],
-  };
+  const rotateYDeg = rotateY.interpolate({
+    inputRange: [-25, 25],
+    outputRange: ['-25deg', '25deg'],
+  });
 
   const rarityGlow = {
-    common: 'rgba(148, 163, 184, 0.3)',
-    rare: 'rgba(59, 130, 246, 0.4)',
-    epic: 'rgba(168, 85, 247, 0.5)',
-    legendary: 'rgba(245, 158, 11, 0.6)',
+    common: 'rgba(148, 163, 184, 0.6)',
+    rare: 'rgba(59, 130, 246, 0.7)',
+    epic: 'rgba(168, 85, 247, 0.8)',
+    legendary: 'rgba(245, 158, 11, 0.9)',
+  };
+
+  const rarityShineColors = {
+    common: ['transparent', 'rgba(255,255,255,0.2)', 'transparent'],
+    rare: ['transparent', 'rgba(100,200,255,0.4)', 'rgba(255,255,255,0.3)', 'transparent'],
+    epic: ['transparent', 'rgba(200,100,255,0.4)', 'rgba(255,200,255,0.3)', 'transparent'],
+    legendary: ['transparent', 'rgba(255,215,0,0.5)', 'rgba(255,255,255,0.4)', 'rgba(255,180,0,0.3)', 'transparent'],
   };
 
   return (
@@ -90,7 +141,7 @@ export const BadgeCard: React.FC<BadgeCardProps> = ({ visible, onClose, badge })
       animationType="fade"
       onRequestClose={onClose}
     >
-      <View style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}>
+      <View style={[styles.modalOverlay, { backgroundColor: 'rgba(0,0,0,0.85)' }]}>
         <TouchableOpacity 
           style={styles.closeArea} 
           activeOpacity={1} 
@@ -101,66 +152,90 @@ export const BadgeCard: React.FC<BadgeCardProps> = ({ visible, onClose, badge })
           </View>
         </TouchableOpacity>
 
-        <Animated.View
-          {...panResponder.panHandlers}
-          style={[
-            styles.cardContainer,
-            {
-              transform: [
-                { rotateY: rotateInterpolate },
-                { scale: scaleAnim },
-              ],
-            },
-          ]}
-        >
-          <LinearGradient
-            colors={rarityColors[badge.rarity]}
+        <View style={styles.cardWrapper}>
+          <Animated.View
+            {...panResponder.panHandlers}
             style={[
-              styles.card,
-              { 
+              styles.cardContainer,
+              {
+                transform: [
+                  { perspective: 1000 },
+                  { rotateX: rotateXDeg },
+                  { rotateY: rotateYDeg },
+                  { scale: scaleAnim },
+                ],
                 shadowColor: rarityGlow[badge.rarity],
-                backgroundColor: colors.surface,
+                shadowOffset: { width: 0, height: isPressed ? 30 : 15 },
+                shadowOpacity: isPressed ? 1 : 0.8,
+                shadowRadius: isPressed ? 40 : 25,
               },
             ]}
           >
-            {/* Front of card */}
-            <View style={styles.cardFront}>
-              <View style={styles.cardHeader}>
-                <Text style={styles.rarityBadge}>{badge.rarity.toUpperCase()}</Text>
-              </View>
+            {/* Card Image - The actual badge card */}
+            <Image
+              source={badge.image}
+              style={styles.cardImage}
+              resizeMode="cover"
+            />
+            
+            {/* Holographic shine overlay */}
+            <Animated.View
+              style={[
+                styles.shineOverlay,
+                {
+                  opacity: isPressed ? 0.8 : 0.3,
+                },
+              ]}
+            >
+              <LinearGradient
+                colors={rarityShineColors[badge.rarity] as any}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.shineGradient}
+              />
+            </Animated.View>
 
-              <View style={styles.imageContainer}>
-                <Image
-                  source={badge.image}
-                  style={styles.badgeImage}
-                  resizeMode="contain"
-                />
-              </View>
+            {/* Moving light reflection */}
+            <Animated.View
+              style={[
+                styles.lightReflection,
+                {
+                  opacity: isPressed ? 0.6 : 0,
+                  left: shineX.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: ['-50%', '100%'],
+                  }),
+                  top: shineY.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: ['-50%', '100%'],
+                  }),
+                },
+              ]}
+            />
 
-              <View style={styles.cardContent}>
-                <Text style={styles.badgeName}>{badge.name}</Text>
-                <Text style={styles.badgeDescription}>{badge.description}</Text>
-                
-                {badge.earnedDate && (
-                  <View style={styles.earnedContainer}>
-                    <Text style={styles.earnedLabel}>Earned on</Text>
-                    <Text style={styles.earnedDate}>
-                      {badge.earnedDate.toLocaleDateString('en-US', {
-                        month: 'long',
-                        day: 'numeric',
-                        year: 'numeric',
-                      })}
-                    </Text>
-                  </View>
-                )}
-              </View>
-
-              <View style={styles.cardFooter}>
-                <Text style={styles.swipeHint}>← Swipe to rotate →</Text>
-              </View>
+            {/* Rarity indicator */}
+            <View style={[styles.rarityBadge, { backgroundColor: rarityGlow[badge.rarity] }]}>
+              <Text style={styles.rarityText}>{badge.rarity.toUpperCase()}</Text>
             </View>
-          </LinearGradient>
-        </Animated.View>
+          </Animated.View>
+
+          {/* Card info below */}
+          <View style={styles.cardInfo}>
+            <Text style={styles.badgeName}>{badge.name}</Text>
+            <Text style={styles.badgeDescription}>{badge.description}</Text>
+            {badge.earnedDate && (
+              <Text style={styles.earnedDate}>
+                🏆 Earned {badge.earnedDate.toLocaleDateString('en-US', {
+                  month: 'short',
+                  day: 'numeric',
+                  year: 'numeric',
+                })}
+              </Text>
+            )}
+          </View>
+
+          <Text style={styles.hintText}>✨ Touch and drag to interact</Text>
+        </View>
       </View>
     </Modal>
   );
@@ -183,104 +258,108 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 60,
     right: 20,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
   },
   closeButtonText: {
     color: '#FFFFFF',
-    fontSize: 24,
-    fontWeight: '600',
+    fontSize: 22,
+    fontWeight: '300',
   },
-  cardContainer: {
-    width: SCREEN_WIDTH * 0.85,
-    height: SCREEN_WIDTH * 1.3,
+  cardWrapper: {
+    alignItems: 'center',
     zIndex: 5,
   },
-  card: {
-    flex: 1,
-    borderRadius: 24,
-    padding: Theme.spacing.xl,
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.8,
-    shadowRadius: 20,
-    elevation: 15,
+  cardContainer: {
+    width: CARD_WIDTH,
+    height: CARD_HEIGHT,
+    borderRadius: 20,
+    overflow: 'hidden',
+    elevation: 20,
   },
-  cardFront: {
-    flex: 1,
+  cardImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 20,
   },
-  cardHeader: {
-    alignItems: 'flex-end',
-    marginBottom: Theme.spacing.md,
+  shineOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: 20,
+    overflow: 'hidden',
+  },
+  shineGradient: {
+    flex: 1,
+    borderRadius: 20,
+  },
+  lightReflection: {
+    position: 'absolute',
+    width: 150,
+    height: 150,
+    borderRadius: 75,
+    backgroundColor: 'rgba(255, 255, 255, 0.4)',
+    transform: [{ scale: 2 }],
   },
   rarityBadge: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  rarityText: {
     color: '#FFFFFF',
-    fontSize: Theme.typography.fontSize.xs,
-    fontWeight: Theme.typography.fontWeight.bold,
-    letterSpacing: 1.5,
-    paddingHorizontal: Theme.spacing.sm,
-    paddingVertical: Theme.spacing.xs,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    borderRadius: Theme.borderRadius.md,
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 1.2,
+    textShadowColor: 'rgba(0, 0, 0, 0.5)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
-  imageContainer: {
-    flex: 1,
-    justifyContent: 'center',
+  cardInfo: {
     alignItems: 'center',
-    marginVertical: Theme.spacing.xl,
-  },
-  badgeImage: {
-    width: '80%',
-    height: '80%',
-  },
-  cardContent: {
-    alignItems: 'center',
-    marginTop: Theme.spacing.lg,
+    marginTop: 24,
+    paddingHorizontal: 20,
   },
   badgeName: {
-    fontSize: Theme.typography.fontSize['2xl'],
-    fontWeight: Theme.typography.fontWeight.bold,
+    fontSize: 24,
+    fontWeight: '700',
     color: '#FFFFFF',
-    marginBottom: Theme.spacing.sm,
+    marginBottom: 8,
     textAlign: 'center',
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
   },
   badgeDescription: {
-    fontSize: Theme.typography.fontSize.base,
-    color: 'rgba(255, 255, 255, 0.9)',
+    fontSize: 15,
+    color: 'rgba(255, 255, 255, 0.8)',
     textAlign: 'center',
     lineHeight: 22,
-    marginBottom: Theme.spacing.lg,
-  },
-  earnedContainer: {
-    alignItems: 'center',
-    marginTop: Theme.spacing.md,
-    paddingTop: Theme.spacing.md,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.2)',
-    width: '100%',
-  },
-  earnedLabel: {
-    fontSize: Theme.typography.fontSize.sm,
-    color: 'rgba(255, 255, 255, 0.7)',
-    marginBottom: Theme.spacing.xs,
+    marginBottom: 12,
   },
   earnedDate: {
-    fontSize: Theme.typography.fontSize.base,
-    fontWeight: Theme.typography.fontWeight.semibold,
-    color: '#FFFFFF',
-  },
-  cardFooter: {
-    alignItems: 'center',
-    marginTop: 'auto',
-    paddingTop: Theme.spacing.md,
-  },
-  swipeHint: {
-    fontSize: Theme.typography.fontSize.sm,
+    fontSize: 13,
     color: 'rgba(255, 255, 255, 0.6)',
+    marginTop: 4,
+  },
+  hintText: {
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.4)',
+    marginTop: 20,
     fontStyle: 'italic',
   },
 });
