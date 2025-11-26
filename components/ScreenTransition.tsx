@@ -4,8 +4,11 @@ import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withTiming,
+  withSpring,
   Easing,
 } from 'react-native-reanimated';
+import { useFocusEffect } from '@react-navigation/native';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface ScreenTransitionProps {
   children: React.ReactNode;
@@ -13,19 +16,20 @@ interface ScreenTransitionProps {
 }
 
 export const ScreenTransition: React.FC<ScreenTransitionProps> = ({ children, style }) => {
-  const opacity = useSharedValue(0);
-  const translateX = useSharedValue(20);
+  const { colors } = useTheme();
+  const opacity = useSharedValue(1);
+  const translateX = useSharedValue(0);
 
-  useEffect(() => {
-    opacity.value = withTiming(1, {
-      duration: 300,
-      easing: Easing.out(Easing.cubic),
-    });
-    translateX.value = withTiming(0, {
-      duration: 300,
-      easing: Easing.out(Easing.cubic),
-    });
-  }, []);
+  // Ejecutar animación cada vez que la pantalla obtiene foco
+  useFocusEffect(
+    React.useCallback(() => {
+      // Reset values
+      opacity.value = 1;
+      translateX.value = 0;
+      
+      // No animation to prevent flash
+    }, [])
+  );
 
   const animatedStyle = useAnimatedStyle(() => {
     return {
@@ -35,7 +39,7 @@ export const ScreenTransition: React.FC<ScreenTransitionProps> = ({ children, st
   });
 
   return (
-    <Animated.View style={[{ flex: 1 }, style, animatedStyle]}>
+    <Animated.View style={[{ flex: 1, backgroundColor: colors.background }, style, animatedStyle]}>
       {children}
     </Animated.View>
   );

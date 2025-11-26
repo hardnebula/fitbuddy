@@ -5,7 +5,8 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "dark",
+    "userInterfaceStyle": "automatic",
+    "backgroundColor": "#0F172A",
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
@@ -16,14 +17,16 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.fitbuddy.app"
+      "bundleIdentifier": "com.fitbuddy.app",
+      "backgroundColor": "#0F172A"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0F172A"
       },
-      "package": "com.fitbuddy.app"
+      "package": "com.fitbuddy.app",
+      "backgroundColor": "#0F172A"
     },
     "web": {
       "favicon": "./assets/favicon.png"

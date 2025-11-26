@@ -11,31 +11,44 @@ import {
   Alert,
   Keyboard,
   TouchableWithoutFeedback,
+  StatusBar,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
 import * as Haptics from 'expo-haptics';
+import { manipulateAsync, FlipType, SaveFormat } from 'expo-image-manipulator';
 import { Card } from '../../components/Card';
 import { Button } from '../../components/Button';
 import { Avatar } from '../../components/Avatar';
+import { StoryAvatar } from '../../components/StoryAvatar';
+import { StoryModal } from '../../components/StoryModal';
 import { AnimatedButton } from '../../components/AnimatedButton';
 import { StreakBadge } from '../../components/StreakBadge';
 import { ScreenTransition } from '../../components/ScreenTransition';
 import { AnimatedTitle } from '../../components/AnimatedTitle';
+import { HighFiveCheckInButton } from '../../components/HighFiveCheckInButton';
 import { Theme } from '../../constants/Theme';
+import { useTheme } from '../../contexts/ThemeContext';
 import { CheckIn } from '../../types';
 
 export default function HomeScreen() {
-  const [checkedInToday, setCheckedInToday] = useState(false);
+  const { colors, isDark } = useTheme();
+  const [checkedInGroups, setCheckedInGroups] = useState<Set<string>>(new Set());
   const [showCheckInModal, setShowCheckInModal] = useState(false);
-  const [showGroupSelector, setShowGroupSelector] = useState(false);
   const [checkInNote, setCheckInNote] = useState('');
   const [checkInPhoto, setCheckInPhoto] = useState<string | null>(null);
-  const [userStreak] = useState(15);
-  const [groupStreak] = useState(8);
-  const [lastCheckIn] = useState('3h ago');
+  const [isPhotoMirrored, setIsPhotoMirrored] = useState(false);
+  const [selectedCheckInGroups, setSelectedCheckInGroups] = useState<string[]>([]);
+  const [selectedStory, setSelectedStory] = useState<CheckIn | null>(null);
+  const [showPhotoOptions, setShowPhotoOptions] = useState(false);
+  const [userStreak] = useState(7);
+  const [lastCheckIn] = useState('Yesterday at 6:30 PM');
+  const [showGroupSelector, setShowGroupSelector] = useState(false);
+  const [groupImage, setGroupImage] = useState<string | null>(null);
 
   // Mock groups data
   const [groups] = useState([
@@ -46,33 +59,72 @@ export default function HomeScreen() {
   const [selectedGroupId, setSelectedGroupId] = useState('1');
   const selectedGroup = groups.find(g => g.id === selectedGroupId) || groups[0];
 
-  // Mock check-ins data
-  const [checkIns] = useState<CheckIn[]>([
-    {
-      id: '1',
-      userId: '2',
-      userName: 'Sarah',
-      timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000),
-      note: 'Great run this morning!',
-    },
-    {
-      id: '2',
-      userId: '3',
-      userName: 'Mike',
-      timestamp: new Date(Date.now() - 5 * 60 * 60 * 1000),
-    },
-  ]);
+  // Mock check-ins data - organized by group
+  const [checkInsByGroup, setCheckInsByGroup] = useState<Record<string, CheckIn[]>>({
+    '1': [
+      {
+        id: '1',
+        userId: '2',
+        userName: 'Sarah',
+        timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000),
+        note: 'Great run this morning!',
+      },
+      {
+        id: '2',
+        userId: '3',
+        userName: 'Mike',
+        timestamp: new Date(Date.now() - 5 * 60 * 60 * 1000),
+      },
+    ],
+    '2': [],
+    '3': [],
+  });
+  
+  // Get check-ins for current group
+  const checkIns = checkInsByGroup[selectedGroupId] || [];
+  const hasCheckedInToday = checkedInGroups.has(selectedGroupId);
 
   const handlePickImage = async () => {
+    setShowPhotoOptions(false);
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [4, 3],
+      allowsEditing: false, // No cropping
       quality: 0.8,
     });
 
     if (!result.canceled && result.assets && result.assets.length > 0) {
       setCheckInPhoto(result.assets[0].uri);
+      setIsPhotoMirrored(false);
+    }
+  };
+
+  const handleTakePhoto = async () => {
+    setShowPhotoOptions(false);
+    
+    // Request camera permissions
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission needed', 'Camera permission is required to take photos');
+      return;
+    }
+
+    const result = await ImagePicker.launchCameraAsync({
+      allowsEditing: false, // No cropping, upload as is
+      quality: 0.8,
+      cameraType: ImagePicker.CameraType.front,
+      // Flash off by default
+    });
+
+    if (!result.canceled && result.assets && result.assets.length > 0) {
+      // Flip the image horizontally to match the camera preview (Instagram style)
+      const flippedImage = await manipulateAsync(
+        result.assets[0].uri,
+        [{ flip: FlipType.Horizontal }],
+        { compress: 0.8, format: SaveFormat.JPEG }
+      );
+      
+      setCheckInPhoto(flippedImage.uri);
+      setIsPhotoMirrored(false);
     }
   };
 
@@ -81,32 +133,92 @@ export default function HomeScreen() {
       Alert.alert('Add something', 'Please add a note or photo');
       return;
     }
-    setCheckedInToday(true);
+
+    if (selectedCheckInGroups.length === 0) {
+      Alert.alert('Select a group', 'Please select at least one group to share with');
+      return;
+    }
+    
+    // Add new check-in to selected groups
+    const newCheckIn: CheckIn = {
+      id: Date.now().toString(),
+      userId: '1', // Current user ID
+      userName: 'You',
+      timestamp: new Date(),
+      note: checkInNote.trim() || undefined,
+      photo: checkInPhoto || undefined,
+    };
+    
+    // Update check-ins for each selected group
+    const updatedCheckIns = { ...checkInsByGroup };
+    selectedCheckInGroups.forEach(groupId => {
+      updatedCheckIns[groupId] = [newCheckIn, ...(updatedCheckIns[groupId] || [])];
+    });
+    setCheckInsByGroup(updatedCheckIns);
+    
+    // Mark groups as checked in
+    const newCheckedInGroups = new Set(checkedInGroups);
+    selectedCheckInGroups.forEach(groupId => newCheckedInGroups.add(groupId));
+    setCheckedInGroups(newCheckedInGroups);
+    
     setShowCheckInModal(false);
     setCheckInNote('');
     setCheckInPhoto(null);
-    Alert.alert('Success!', 'Check-in recorded! 🔥', [{ text: 'OK' }]);
+    setIsPhotoMirrored(false);
+    setSelectedCheckInGroups([]);
+    
+    const groupText = selectedCheckInGroups.length === groups.length 
+      ? 'all groups' 
+      : selectedCheckInGroups.length === 1 
+        ? groups.find(g => g.id === selectedCheckInGroups[0])?.name 
+        : `${selectedCheckInGroups.length} groups`;
+    
+    Alert.alert('Success!', `Check-in shared with ${groupText}! 🔥`, [{ text: 'OK' }]);
+  };
+
+  const handleSelectGroupImage = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+
+    if (!result.canceled && result.assets && result.assets.length > 0) {
+      setGroupImage(result.assets[0].uri);
+    }
   };
 
   return (
     <ScreenTransition>
-      <SafeAreaView style={styles.container} edges={['top']}>
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
         <ScrollView
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
         {/* Header */}
-        <View style={styles.header}>
+        <View style={[styles.header]}>
           <View style={styles.headerLeft}>
-            <Image 
-              source={require('../../assets/images/Teo Jumping.png')} 
-              style={styles.logo}
-              resizeMode="contain"
-            />
+            <TouchableOpacity 
+              onPress={handleSelectGroupImage} 
+              style={[styles.groupImageContainer, { backgroundColor: colors.cardSecondary, borderColor: colors.border }]}
+            >
+              {groupImage ? (
+                <Image 
+                  source={{ uri: groupImage }} 
+                  style={styles.groupImage}
+                />
+              ) : (
+                <View style={styles.groupImagePlaceholder}>
+                  <Text style={[styles.groupImagePlaceholderText, { color: colors.textTertiary }]}>+</Text>
+                </View>
+              )}
+            </TouchableOpacity>
             <View>
-              <Text style={styles.groupName}>{selectedGroup.name}</Text>
-              <Text style={styles.groupSubtext}>{selectedGroup.members} members</Text>
+              <Text style={[styles.groupName, { color: colors.text }]}>{selectedGroup.name}</Text>
+              <Text style={[styles.groupSubtext, { color: colors.textTertiary }]}>{selectedGroup.members} members</Text>
             </View>
           </View>
           <TouchableOpacity onPress={() => setShowGroupSelector(true)}>
@@ -115,7 +227,7 @@ export default function HomeScreen() {
                 strokeLinecap="round"
                 strokeLinejoin="round"
                 strokeWidth={1.5}
-                stroke="#666666"
+                stroke={colors.textSecondary}
                 d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5"
               />
             </Svg>
@@ -123,82 +235,86 @@ export default function HomeScreen() {
         </View>
 
         {/* Hero Card */}
-        <Card style={styles.heroCard} glow={checkedInToday}>
+        <Card style={StyleSheet.flatten([styles.heroCard, { backgroundColor: colors.cardSecondary }])} glow={hasCheckedInToday}>
           <View style={styles.statusContainer}>
             <Text
               style={[
                 styles.statusText,
-                checkedInToday && styles.statusCompleted,
+                { color: colors.textSecondary },
+                hasCheckedInToday && { color: colors.success },
               ]}
             >
-              {checkedInToday ? '✓ Completed Today' : 'Not Yet'}
+              {hasCheckedInToday ? 'Done for today!' : 'Not Yet'}
             </Text>
           </View>
 
-          <AnimatedButton
+          <HighFiveCheckInButton
             onPress={() => setShowCheckInModal(true)}
-            disabled={checkedInToday}
-            style={styles.checkInButton}
-          >
-            <LinearGradient
-              colors={
-                checkedInToday
-                  ? [Theme.colors.accent, Theme.colors.accentDark]
-                  : [Theme.colors.primary, Theme.colors.primaryDark]
-              }
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.gradient}
-            >
-              <Text style={styles.checkInButtonText}>
-                {checkedInToday ? 'Already Checked In!' : 'I Exercised Today'}
-              </Text>
-            </LinearGradient>
-          </AnimatedButton>
+            disabled={hasCheckedInToday}
+          />
 
-          <Text style={styles.lastCheckIn}>Last check-in: {lastCheckIn}</Text>
+          <Text style={[styles.lastCheckIn, { color: colors.textTertiary }]}>Last check-in: {lastCheckIn}</Text>
         </Card>
 
         {/* Streak Section */}
-        <View style={styles.streakSection}>
+        <View style={[styles.streakSection, { backgroundColor: colors.cardSecondary }]}>
           <View style={styles.streakItem}>
-            <Text style={styles.streakLabel}>Your Streak</Text>
+            <Text style={[styles.streakLabel, { color: colors.textSecondary }]}>Your Streak</Text>
             <StreakBadge days={userStreak} size="medium" />
           </View>
-          <View style={styles.streakDivider} />
+          <View style={[styles.streakDivider, { backgroundColor: colors.border }]} />
           <View style={styles.streakItem}>
-            <Text style={styles.streakLabel}>Group Streak</Text>
+            <Text style={[styles.streakLabel, { color: colors.textSecondary }]}>Group Streak</Text>
             <StreakBadge days={selectedGroup.streak} size="small" />
           </View>
         </View>
 
         {/* Group Feed */}
         <View style={styles.feedSection}>
-          <AnimatedTitle style={styles.feedTitle}>Group Feed</AnimatedTitle>
-          {checkIns.map((checkIn) => (
-            <Card key={checkIn.id} style={styles.feedCard}>
-              <View style={styles.feedItem}>
-                <Avatar
-                  name={checkIn.userName}
-                  size={48}
-                  showBorder
-                  borderColor={Theme.colors.accent}
-                />
-                <View style={styles.feedContent}>
-                  <Text style={styles.feedName}>{checkIn.userName}</Text>
-                  <Text style={styles.feedTime}>
-                    {checkIn.timestamp.toLocaleTimeString([], {
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })}
-                  </Text>
-                  {checkIn.note && (
-                    <Text style={styles.feedNote}>{checkIn.note}</Text>
-                  )}
+          <AnimatedTitle style={StyleSheet.flatten([styles.feedTitle, { color: colors.text }])}>Group Feed</AnimatedTitle>
+          {checkIns.length === 0 ? (
+            <View style={styles.emptyFeedContainer}>
+              <Image
+                source={require('../../assets/images/Teo sleeping.png')}
+                style={styles.emptyFeedImage}
+                resizeMode="contain"
+              />
+              <Text style={[styles.emptyFeedTitle, { color: colors.text }]}>No activity yet</Text>
+              <Text style={[styles.emptyFeedMessage, { color: colors.textSecondary }]}>
+                Be the first to check in today! 💪
+              </Text>
+            </View>
+          ) : (
+            checkIns.map((checkIn) => (
+              <Card key={checkIn.id} style={StyleSheet.flatten([styles.feedCard, { backgroundColor: colors.cardSecondary }])}>
+                <View style={styles.feedItem}>
+                  <StoryAvatar
+                    name={checkIn.userName}
+                    size={56}
+                    hasStory={!!checkIn.photo}
+                    onPress={() => {
+                      if (checkIn.photo || checkIn.note) {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        setSelectedStory(checkIn);
+                      }
+                    }}
+                  />
+                  <View style={styles.feedContent}>
+                    <Text style={[styles.feedName, { color: colors.text }]}>{checkIn.userName}</Text>
+                    <Text style={[styles.feedTime, { color: colors.textTertiary }]}>
+                      {checkIn.timestamp.toLocaleTimeString([], {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </Text>
+                    {checkIn.note && (
+                      <Text style={[styles.feedNote, { color: colors.textSecondary }]}>{checkIn.note}</Text>
+                    )}
+                  </View>
                 </View>
-              </View>
-            </Card>
-          ))}
+              </Card>
+            ))
+          )}
         </View>
       </ScrollView>
 
@@ -210,11 +326,11 @@ export default function HomeScreen() {
         onRequestClose={() => setShowGroupSelector(false)}
       >
         <TouchableWithoutFeedback onPress={() => setShowGroupSelector(false)}>
-          <View style={styles.modalOverlay}>
+          <View style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}>
             <TouchableWithoutFeedback onPress={() => {}}>
-              <View style={styles.groupSelectorContent}>
-                <Text style={styles.modalTitle}>Select Group</Text>
-                <Text style={styles.groupSelectorSubtitle}>
+              <View style={[styles.groupSelectorContent, { backgroundColor: colors.surface }]}>
+                <Text style={[styles.modalTitle, { color: colors.text }]}>Select Group</Text>
+                <Text style={[styles.groupSelectorSubtitle, { color: colors.textSecondary }]}>
                   Choose which group to display on your home screen
                 </Text>
 
@@ -224,7 +340,8 @@ export default function HomeScreen() {
                       key={group.id}
                       style={[
                         styles.groupItem,
-                        selectedGroupId === group.id && styles.groupItemSelected,
+                        { backgroundColor: colors.cardSecondary, borderColor: 'transparent' },
+                        selectedGroupId === group.id && { backgroundColor: colors.primary + '15', borderColor: colors.primary },
                       ]}
                       onPress={() => {
                         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -233,24 +350,36 @@ export default function HomeScreen() {
                       }}
                     >
                       <View style={styles.groupItemLeft}>
-                        <Text style={styles.groupItemName}>{group.name}</Text>
-                        <Text style={styles.groupItemInfo}>
+                        <Text style={[styles.groupItemName, { color: colors.text }]}>{group.name}</Text>
+                        <Text style={[styles.groupItemInfo, { color: colors.textSecondary }]}>
                           {group.members} members • {group.streak} day streak
                         </Text>
                       </View>
                       {selectedGroupId === group.id && (
-                        <Text style={styles.checkmark}>✓</Text>
+                        <Text style={[styles.checkmark, { color: colors.primary }]}>✓</Text>
                       )}
                     </TouchableOpacity>
                   ))}
                 </View>
 
-                <Button
-                  title="Close"
-                  onPress={() => setShowGroupSelector(false)}
-                  variant="outline"
-                  fullWidth
-                />
+                <View style={styles.groupSelectorActions}>
+                  <Button
+                    title="Create Group"
+                    onPress={() => {
+                      setShowGroupSelector(false);
+                      // Navigate to create group screen
+                      // router.push('/(auth)/create-group');
+                    }}
+                    fullWidth
+                    style={{ marginBottom: Theme.spacing.sm }}
+                  />
+                  <Button
+                    title="Close"
+                    onPress={() => setShowGroupSelector(false)}
+                    variant="outline"
+                    fullWidth
+                  />
+                </View>
               </View>
             </TouchableWithoutFeedback>
           </View>
@@ -267,15 +396,67 @@ export default function HomeScreen() {
           setShowCheckInModal(false);
         }}
       >
-        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-          <View style={styles.modalOverlay}>
-            <TouchableWithoutFeedback onPress={() => {}}>
-              <View style={styles.modalContent}>
-                <Text style={styles.modalTitle}>Log Your Activity</Text>
+        <KeyboardAvoidingView 
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={{ flex: 1 }}
+        >
+          <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+            <View style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}>
+              <TouchableWithoutFeedback onPress={() => {}}>
+                <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
+                  <ScrollView 
+                    showsVerticalScrollIndicator={false}
+                    keyboardShouldPersistTaps="handled"
+                    contentContainerStyle={styles.modalScrollContent}
+                  >
+                  <Text style={[styles.modalTitle, { color: colors.text }]}>Log Your Activity</Text>
+
+                {/* Group Selection */}
+                <View style={styles.groupSelectionContainer}>
+                  <Text style={[styles.groupSelectionLabel, { color: colors.textSecondary }]}>Share with:</Text>
+                  <View style={styles.groupChipsContainer}>
+                    <TouchableOpacity
+                      onPress={() => {
+                        if (selectedCheckInGroups.length === groups.length) {
+                          setSelectedCheckInGroups([]);
+                        } else {
+                          setSelectedCheckInGroups(groups.map(g => g.id));
+                        }
+                      }}
+                      style={[styles.groupChip, { 
+                        backgroundColor: selectedCheckInGroups.length === groups.length ? colors.primary : colors.cardSecondary, 
+                        borderColor: selectedCheckInGroups.length === groups.length ? colors.primary : colors.border 
+                      }]}
+                    >
+                      <Text style={[styles.groupChipText, { color: selectedCheckInGroups.length === groups.length ? '#FFFFFF' : colors.text }]}>All</Text>
+                    </TouchableOpacity>
+                    {groups.map((group) => (
+                      <TouchableOpacity
+                        key={group.id}
+                        onPress={() => {
+                          if (selectedCheckInGroups.includes(group.id)) {
+                            setSelectedCheckInGroups(selectedCheckInGroups.filter(id => id !== group.id));
+                          } else {
+                            setSelectedCheckInGroups([...selectedCheckInGroups, group.id]);
+                          }
+                        }}
+                        style={[styles.groupChip, { 
+                          backgroundColor: selectedCheckInGroups.includes(group.id) ? colors.primary : colors.cardSecondary, 
+                          borderColor: selectedCheckInGroups.includes(group.id) ? colors.primary : colors.border 
+                        }]}
+                      >
+                        <Text style={[styles.groupChipText, { color: selectedCheckInGroups.includes(group.id) ? '#FFFFFF' : colors.text }]}>{group.name}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
 
                 {checkInPhoto ? (
                   <View style={styles.photoContainer}>
-                    <Image source={{ uri: checkInPhoto }} style={styles.photo} />
+                    <Image 
+                      source={{ uri: checkInPhoto }} 
+                      style={styles.photo}
+                    />
                     <TouchableOpacity
                       onPress={() => setCheckInPhoto(null)}
                       style={styles.removePhoto}
@@ -284,29 +465,50 @@ export default function HomeScreen() {
                     </TouchableOpacity>
                   </View>
                 ) : (
-                  <TouchableOpacity
-                    onPress={handlePickImage}
-                    style={styles.photoButton}
-                  >
-                    <Text style={styles.photoButtonIcon}>📷</Text>
-                    <Text style={styles.photoButtonText}>Add Photo</Text>
-                  </TouchableOpacity>
+                  <View>
+                    <TouchableOpacity
+                      onPress={() => setShowPhotoOptions(true)}
+                      style={[styles.photoButton, { backgroundColor: colors.cardSecondary, borderColor: colors.primary }]}
+                    >
+                      <Text style={styles.photoButtonIcon}>📷</Text>
+                      <Text style={[styles.photoButtonText, { color: colors.primary }]}>Add Photo</Text>
+                    </TouchableOpacity>
+                    
+                    {showPhotoOptions && (
+                      <View style={styles.photoOptionsContainer}>
+                        <TouchableOpacity
+                          onPress={handleTakePhoto}
+                          style={[styles.photoOptionButton, { backgroundColor: colors.primary }]}
+                        >
+                          <Text style={styles.photoOptionIcon}>📸</Text>
+                          <Text style={styles.photoOptionButtonText}>Camera</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          onPress={handlePickImage}
+                          style={[styles.photoOptionButton, { backgroundColor: colors.primary }]}
+                        >
+                          <Text style={styles.photoOptionIcon}>🖼️</Text>
+                          <Text style={styles.photoOptionButtonText}>Gallery</Text>
+                        </TouchableOpacity>
+                      </View>
+                    )}
+                  </View>
                 )}
 
-                <TextInput
-                  style={styles.noteInput}
-                  placeholder="Add a note (optional)"
-                  placeholderTextColor={Theme.colors.textTertiary}
-                  value={checkInNote}
-                  onChangeText={setCheckInNote}
-                  multiline
-                  numberOfLines={4}
-                  blurOnSubmit={true}
-                  returnKeyType="done"
-                  onSubmitEditing={() => {
-                    Keyboard.dismiss();
-                  }}
-                />
+                <View style={styles.noteInputContainer}>
+                  <Text style={[styles.noteInputLabel, { color: colors.textSecondary }]}>Note (optional):</Text>
+                  <TextInput
+                    style={[styles.noteInput, { backgroundColor: colors.cardSecondary, borderColor: colors.border, color: colors.text }]}
+                    placeholder="How did it go?"
+                    placeholderTextColor={colors.textTertiary}
+                    value={checkInNote}
+                    onChangeText={setCheckInNote}
+                    multiline
+                    textAlignVertical="top"
+                    blurOnSubmit={true}
+                    returnKeyType="done"
+                  />
+                </View>
 
                 <View style={styles.modalActions}>
                   <Button
@@ -329,11 +531,25 @@ export default function HomeScreen() {
                     style={styles.modalButton}
                   />
                 </View>
+                </ScrollView>
               </View>
             </TouchableWithoutFeedback>
           </View>
         </TouchableWithoutFeedback>
+        </KeyboardAvoidingView>
       </Modal>
+
+      {/* Story Modal */}
+      {selectedStory && (
+        <StoryModal
+          visible={!!selectedStory}
+          onClose={() => setSelectedStory(null)}
+          userName={selectedStory.userName}
+          photo={selectedStory.photo}
+          note={selectedStory.note}
+          timestamp={selectedStory.timestamp}
+        />
+      )}
     </SafeAreaView>
     </ScreenTransition>
   );
@@ -356,11 +572,36 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: Theme.spacing.xl,
+    paddingTop: Theme.spacing.sm,
   },
   headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Theme.spacing.md,
+  },
+  groupImageContainer: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    overflow: 'hidden',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+  },
+  groupImage: {
+    width: 56,
+    height: 56,
+  },
+  groupImagePlaceholder: {
+    width: 56,
+    height: 56,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  groupImagePlaceholderText: {
+    fontSize: 24,
+    color: '#999999',
+    fontWeight: '300',
   },
   logo: {
     width: 50,
@@ -403,6 +644,18 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     marginBottom: Theme.spacing.md,
     ...Theme.shadows.glow,
+  },
+  checkInButtonContainer: {
+    width: '100%',
+    marginBottom: Theme.spacing.md,
+    alignItems: 'center',
+  },
+  checkInButtonImage: {
+    width: '100%',
+    height: 80,
+  },
+  checkInButtonImageDisabled: {
+    opacity: 0.5,
   },
   gradient: {
     paddingVertical: Theme.spacing.lg,
@@ -449,6 +702,28 @@ const styles = StyleSheet.create({
     color: '#000000',
     marginBottom: Theme.spacing.md,
   },
+  emptyFeedContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: Theme.spacing.xxl,
+    paddingHorizontal: Theme.spacing.xl,
+  },
+  emptyFeedImage: {
+    width: 150,
+    height: 150,
+    marginBottom: Theme.spacing.lg,
+  },
+  emptyFeedTitle: {
+    fontSize: Theme.typography.fontSize.xl,
+    fontWeight: Theme.typography.fontWeight.bold,
+    marginBottom: Theme.spacing.sm,
+    textAlign: 'center',
+  },
+  emptyFeedMessage: {
+    fontSize: Theme.typography.fontSize.base,
+    textAlign: 'center',
+    lineHeight: 22,
+  },
   feedCard: {
     marginBottom: Theme.spacing.md,
     backgroundColor: '#F5F5F5',
@@ -486,6 +761,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderTopLeftRadius: Theme.borderRadius.xl,
     borderTopRightRadius: Theme.borderRadius.xl,
+    maxHeight: '85%',
+  },
+  modalScrollContent: {
     padding: Theme.spacing.xl,
     paddingBottom: Theme.spacing.xxl,
   },
@@ -493,7 +771,38 @@ const styles = StyleSheet.create({
     fontSize: Theme.typography.fontSize['2xl'],
     fontWeight: Theme.typography.fontWeight.bold,
     color: '#000000',
-    marginBottom: Theme.spacing.xl,
+    marginBottom: Theme.spacing.lg,
+  },
+  groupSelectionContainer: {
+    marginBottom: Theme.spacing.md,
+  },
+  groupSelectionLabel: {
+    fontSize: Theme.typography.fontSize.sm,
+    fontWeight: Theme.typography.fontWeight.semibold,
+    marginBottom: Theme.spacing.sm,
+  },
+  groupChipsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Theme.spacing.sm,
+  },
+  groupChip: {
+    paddingVertical: Theme.spacing.xs,
+    paddingHorizontal: Theme.spacing.md,
+    borderRadius: Theme.borderRadius.full,
+    borderWidth: 1.5,
+  },
+  groupChipText: {
+    fontSize: Theme.typography.fontSize.sm,
+    fontWeight: Theme.typography.fontWeight.medium,
+  },
+  noteInputContainer: {
+    marginBottom: Theme.spacing.lg,
+  },
+  noteInputLabel: {
+    fontSize: Theme.typography.fontSize.sm,
+    fontWeight: Theme.typography.fontWeight.semibold,
+    marginBottom: Theme.spacing.sm,
   },
   photoButton: {
     backgroundColor: '#F5F5F5',
@@ -515,6 +824,30 @@ const styles = StyleSheet.create({
     fontSize: Theme.typography.fontSize.base,
     color: '#8B5CF6',
     fontWeight: Theme.typography.fontWeight.medium,
+  },
+  photoOptionsContainer: {
+    flexDirection: 'row',
+    gap: Theme.spacing.sm,
+    marginTop: Theme.spacing.md,
+    marginBottom: Theme.spacing.sm,
+  },
+  photoOptionButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: Theme.spacing.sm,
+    paddingHorizontal: Theme.spacing.md,
+    borderRadius: Theme.borderRadius.md,
+    gap: Theme.spacing.xs,
+  },
+  photoOptionIcon: {
+    fontSize: 20,
+  },
+  photoOptionButtonText: {
+    fontSize: Theme.typography.fontSize.sm,
+    fontWeight: Theme.typography.fontWeight.semibold,
+    color: '#FFFFFF',
   },
   photoContainer: {
     marginBottom: Theme.spacing.lg,
@@ -540,9 +873,9 @@ const styles = StyleSheet.create({
     padding: Theme.spacing.md,
     fontSize: Theme.typography.fontSize.base,
     color: '#000000',
-    minHeight: 100,
+    minHeight: 120,
+    maxHeight: 200,
     textAlignVertical: 'top',
-    marginBottom: Theme.spacing.xl,
   },
   modalActions: {
     flexDirection: 'row',
@@ -563,6 +896,9 @@ const styles = StyleSheet.create({
     color: '#666666',
     marginBottom: Theme.spacing.xl,
     marginTop: -Theme.spacing.md,
+  },
+  groupSelectorActions: {
+    gap: Theme.spacing.sm,
   },
   groupsList: {
     marginBottom: Theme.spacing.xl,

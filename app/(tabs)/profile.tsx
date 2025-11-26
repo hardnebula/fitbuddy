@@ -7,19 +7,25 @@ import {
   TouchableOpacity,
   Image,
   Alert,
+  StatusBar,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
+import Svg, { Path } from 'react-native-svg';
 import { ScreenTransition } from '../../components/ScreenTransition';
 import { AnimatedTitle } from '../../components/AnimatedTitle';
+import { BadgeCard } from '../../components/BadgeCard';
 import { Theme } from '../../constants/Theme';
+import { useTheme } from '../../contexts/ThemeContext';
 
 export default function ProfileScreen() {
+  const { colors, isDark, setTheme } = useTheme();
   const [userName] = useState('Luna');
   const [userPhoto, setUserPhoto] = useState<string | null>(null);
   const [currentStreak] = useState(15);
   const [bestStreak] = useState(45);
   const [totalCheckIns] = useState(127);
+  const [selectedBadge, setSelectedBadge] = useState<any>(null);
 
   // Mock calendar data - días del mes actual
   const generateCalendarDays = () => {
@@ -46,12 +52,38 @@ export default function ProfileScreen() {
 
   // Badges del usuario
   const badges = [
-    { id: 1, emoji: '🔥', name: 'Fire Starter', description: '7 day streak' },
-    { id: 2, emoji: '⚡', name: 'Lightning', description: '30 day streak' },
-    { id: 3, emoji: '💪', name: 'Strong', description: '100 check-ins' },
-    { id: 4, emoji: '🏆', name: 'Champion', description: 'Best streak 45 days' },
-    { id: 5, emoji: '⭐', name: 'Star', description: 'Perfect week' },
-    { id: 6, emoji: '🎯', name: 'Focused', description: 'Never missed a Monday' },
+    { 
+      id: '1', 
+      name: '7 Day Streak', 
+      description: 'Completed 7 consecutive days of check-ins. Keep the fire burning!',
+      image: require('../../assets/images/Badges/7 day streak.png'),
+      earnedDate: new Date(2024, 10, 15),
+      rarity: 'rare' as const,
+    },
+    { 
+      id: '2', 
+      name: 'Lightning Fast', 
+      description: 'Achieved 30 day streak. You\'re unstoppable!',
+      image: require('../../assets/images/Badges/7 day streak.png'), // Placeholder
+      earnedDate: new Date(2024, 10, 20),
+      rarity: 'epic' as const,
+    },
+    { 
+      id: '3', 
+      name: 'Century Club', 
+      description: 'Reached 100 total check-ins. A true dedication!',
+      image: require('../../assets/images/Badges/7 day streak.png'), // Placeholder
+      earnedDate: new Date(2024, 9, 10),
+      rarity: 'epic' as const,
+    },
+    { 
+      id: '4', 
+      name: 'Champion', 
+      description: 'Best streak of 45 days. You\'re a legend!',
+      image: require('../../assets/images/Badges/7 day streak.png'), // Placeholder
+      earnedDate: new Date(2024, 8, 5),
+      rarity: 'legendary' as const,
+    },
   ];
 
   const handleChangePhoto = async () => {
@@ -80,66 +112,98 @@ export default function ProfileScreen() {
 
   return (
     <ScreenTransition>
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Header */}
-        <AnimatedTitle style={styles.title}>Profile</AnimatedTitle>
+        {/* Header with Theme Toggle */}
+        <View style={styles.headerContainer}>
+          <AnimatedTitle style={StyleSheet.flatten([styles.title, { color: colors.text }])}>Profile</AnimatedTitle>
+          <TouchableOpacity 
+            onPress={() => setTheme(isDark ? 'light' : 'dark')}
+            style={[styles.themeToggle, { backgroundColor: colors.cardSecondary }]}
+            activeOpacity={0.7}
+          >
+            <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
+              {isDark ? (
+                // Sun icon for light mode
+                <Path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={1.5}
+                  stroke={colors.text}
+                  d="M12 3v2.25m6.364.386-1.591 1.591M21 12h-2.25m-.386 6.364-1.591-1.591M12 18.75V21m-4.773-4.227-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0Z"
+                />
+              ) : (
+                // Moon icon for dark mode
+                <Path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={1.5}
+                  stroke={colors.text}
+                  d="M21.752 15.002A9.72 9.72 0 0 1 18 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 0 0 3 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 0 0 9.002-5.998Z"
+                />
+              )}
+            </Svg>
+          </TouchableOpacity>
+        </View>
 
         {/* Avatar */}
         <TouchableOpacity style={styles.avatarContainer} onPress={handleChangePhoto}>
-          <View style={styles.avatar}>
+          <View style={[styles.avatar, { backgroundColor: colors.primary }]}>
             {userPhoto ? (
               <Image source={{ uri: userPhoto }} style={styles.avatarImage} />
             ) : (
               <Text style={styles.avatarEmoji}>👤</Text>
             )}
           </View>
-          <Text style={styles.changePhotoText}>Change Photo</Text>
+          <Text style={[styles.changePhotoText, { color: colors.primary }]}>Change Photo</Text>
         </TouchableOpacity>
 
-        <Text style={styles.userName}>{userName}</Text>
+        <Text style={[styles.userName, { color: colors.text }]}>{userName}</Text>
 
         {/* Stats Cards */}
         <View style={styles.statsContainer}>
-          <View style={styles.statCard}>
-            <Text style={styles.statValue}>{currentStreak}</Text>
-            <Text style={styles.statLabel}>Current Streak</Text>
+          <View style={[styles.statCard, { backgroundColor: colors.cardSecondary }]}>
+            <Text style={[styles.statValue, { color: colors.primary }]}>{currentStreak}</Text>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Current Streak</Text>
             <Text style={styles.statEmoji}>🔥</Text>
           </View>
-          <View style={styles.statCard}>
-            <Text style={styles.statValue}>{bestStreak}</Text>
-            <Text style={styles.statLabel}>Best Streak</Text>
+          <View style={[styles.statCard, { backgroundColor: colors.cardSecondary }]}>
+            <Text style={[styles.statValue, { color: colors.primary }]}>{bestStreak}</Text>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Best Streak</Text>
             <Text style={styles.statEmoji}>⚡</Text>
           </View>
-          <View style={styles.statCard}>
-            <Text style={styles.statValue}>{totalCheckIns}</Text>
-            <Text style={styles.statLabel}>Total Check-ins</Text>
+          <View style={[styles.statCard, { backgroundColor: colors.cardSecondary }]}>
+            <Text style={[styles.statValue, { color: colors.primary }]}>{totalCheckIns}</Text>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Total Check-ins</Text>
             <Text style={styles.statEmoji}>✅</Text>
           </View>
         </View>
 
         {/* Calendar Section */}
-        <AnimatedTitle style={styles.sectionTitle}>{currentMonth} Activity</AnimatedTitle>
-        <View style={styles.calendarCard}>
+        <AnimatedTitle style={StyleSheet.flatten([styles.sectionTitle, { color: colors.text }])}>{currentMonth} Activity</AnimatedTitle>
+        <View style={[styles.calendarCard, { backgroundColor: colors.cardSecondary }]}>
           <View style={styles.calendarGrid}>
             {calendarDays.map((day) => (
               <View
                 key={day.day}
                 style={[
                   styles.calendarDay,
-                  day.hasCheckIn && styles.calendarDayActive,
-                  day.isToday && styles.calendarDayToday,
+                  { backgroundColor: colors.surface },
+                  day.hasCheckIn && { backgroundColor: colors.primary },
+                  day.isToday && { borderWidth: 2, borderColor: colors.primary },
                 ]}
               >
                 <Text
                   style={[
                     styles.calendarDayText,
-                    day.hasCheckIn && styles.calendarDayTextActive,
-                    day.isToday && styles.calendarDayTextToday,
+                    { color: colors.textTertiary },
+                    day.hasCheckIn && { color: '#FFFFFF', fontWeight: Theme.typography.fontWeight.bold },
+                    day.isToday && { color: colors.primary, fontWeight: Theme.typography.fontWeight.bold },
                   ]}
                 >
                   {day.day}
@@ -150,16 +214,40 @@ export default function ProfileScreen() {
         </View>
 
         {/* Badges Section */}
-        <AnimatedTitle style={styles.sectionTitle}>Achievements</AnimatedTitle>
+        <AnimatedTitle style={StyleSheet.flatten([styles.sectionTitle, { color: colors.text }])}>Achievements</AnimatedTitle>
         <View style={styles.badgesContainer}>
           {badges.map((badge) => (
-            <View key={badge.id} style={styles.badgeCard}>
-              <Text style={styles.badgeEmoji}>{badge.emoji}</Text>
-              <Text style={styles.badgeName}>{badge.name}</Text>
-              <Text style={styles.badgeDescription}>{badge.description}</Text>
-            </View>
+            <TouchableOpacity 
+              key={badge.id} 
+              style={[styles.badgeCard, { backgroundColor: colors.cardSecondary }]}
+              onPress={() => setSelectedBadge(badge)}
+              activeOpacity={0.7}
+            >
+              <Image 
+                source={badge.image} 
+                style={styles.badgeImage}
+                resizeMode="contain"
+              />
+              <Text style={[styles.badgeName, { color: colors.text }]}>{badge.name}</Text>
+              <View style={[styles.rarityBadge, { 
+                backgroundColor: badge.rarity === 'legendary' ? '#F59E0B' : 
+                                 badge.rarity === 'epic' ? '#A855F7' : 
+                                 badge.rarity === 'rare' ? '#3B82F6' : '#94A3B8'
+              }]}>
+                <Text style={styles.rarityText}>{badge.rarity.toUpperCase()}</Text>
+              </View>
+            </TouchableOpacity>
           ))}
         </View>
+
+        {/* Badge Card Modal */}
+        {selectedBadge && (
+          <BadgeCard
+            visible={!!selectedBadge}
+            onClose={() => setSelectedBadge(null)}
+            badge={selectedBadge}
+          />
+        )}
       </ScrollView>
     </SafeAreaView>
     </ScreenTransition>
@@ -300,21 +388,53 @@ const styles = StyleSheet.create({
     borderRadius: Theme.borderRadius.lg,
     padding: Theme.spacing.md,
     alignItems: 'center',
+    position: 'relative',
+  },
+  badgeImage: {
+    width: 80,
+    height: 80,
+    marginBottom: Theme.spacing.sm,
+  },
+  badgeName: {
+    fontSize: Theme.typography.fontSize.sm,
+    fontWeight: Theme.typography.fontWeight.bold,
+    color: '#000000',
+    marginBottom: Theme.spacing.xs,
+    textAlign: 'center',
+  },
+  rarityBadge: {
+    paddingHorizontal: Theme.spacing.sm,
+    paddingVertical: 2,
+    borderRadius: Theme.borderRadius.sm,
+    marginTop: Theme.spacing.xs,
+  },
+  rarityText: {
+    fontSize: 10,
+    fontWeight: Theme.typography.fontWeight.bold,
+    color: '#FFFFFF',
+    letterSpacing: 0.5,
   },
   badgeEmoji: {
     fontSize: 40,
     marginBottom: Theme.spacing.sm,
   },
-  badgeName: {
-    fontSize: Theme.typography.fontSize.base,
-    fontWeight: Theme.typography.fontWeight.bold,
-    color: '#000000',
-    marginBottom: 4,
-    textAlign: 'center',
-  },
   badgeDescription: {
     fontSize: Theme.typography.fontSize.xs,
     color: '#666666',
     textAlign: 'center',
+  },
+  headerContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: Theme.spacing.lg,
+    paddingTop: Theme.spacing.sm,
+  },
+  themeToggle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });

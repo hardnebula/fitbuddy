@@ -3,150 +3,101 @@ import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
-  KeyboardAvoidingView,
-  Platform,
+  StatusBar,
+  Image,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button } from '../../components/Button';
-import { Logo } from '../../components/Logo';
 import { Theme } from '../../constants/Theme';
+import { useTheme } from '../../contexts/ThemeContext';
 
 export default function WelcomeScreen() {
   const router = useRouter();
+  const { colors, isDark } = useTheme();
+
+  const handleGetStarted = () => {
+    router.push('/(onboarding)/goal');
+  };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.keyboardView}
-      >
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-        >
-          <View style={styles.content}>
-            <View style={styles.header}>
-              <Logo size={120} style={styles.logo} />
-              <Text style={styles.title}>FitBuddy</Text>
-              <Text style={styles.subtitle}>
-                Stay accountable with your group
-              </Text>
-            </View>
+    <>
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'bottom']}>
+        <View style={styles.content}>
+          {/* Logo */}
+          <View style={styles.logoContainer}>
+            <Image
+              source={require('../../assets/images/Logo-teo-Photoroom.png')}
+              style={styles.logo}
+              resizeMode="contain"
+            />
+          </View>
 
-            <View style={styles.actions}>
-              <Button
-                title="Create Account"
-                onPress={() => router.push('/(auth)/create-group')}
-                fullWidth
-                size="large"
-              />
-
-              <Button
-                title="Join with Code"
-                onPress={() => router.push('/(auth)/join-group')}
-                variant="outline"
-                fullWidth
-                size="large"
-                style={styles.joinButton}
-              />
-            </View>
-
-            <View style={styles.social}>
-              <Text style={styles.socialText}>Or continue with</Text>
-              <View style={styles.socialButtons}>
-                <Button
-                  title="Apple"
-                  onPress={() => {}}
-                  variant="outline"
-                  style={styles.socialButton}
-                />
-                <Button
-                  title="Google"
-                  onPress={() => {}}
-                  variant="outline"
-                  style={styles.socialButton}
-                />
-              </View>
-            </View>
-
-            <Text style={styles.footer}>
-              By continuing, you agree to our{' '}
-              <Text style={styles.link}>Privacy Policy</Text>
+          {/* Text Content */}
+          <View style={styles.textContainer}>
+            <Text style={[styles.title, { color: colors.text }]}>Welcome to FitBuddy</Text>
+            <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+              Stay consistent with the people you trust.
             </Text>
           </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+
+          {/* Spacer */}
+          <View style={styles.spacer} />
+
+          {/* Button */}
+          <View style={styles.buttonContainer}>
+            <Button
+              title="Get Started →"
+              onPress={handleGetStarted}
+              fullWidth
+              size="large"
+            />
+          </View>
+        </View>
+      </SafeAreaView>
+    </>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
-  },
-  keyboardView: {
-    flex: 1,
-  },
-  scrollContent: {
-    flexGrow: 1,
   },
   content: {
     flex: 1,
-    padding: Theme.spacing.xl,
-    justifyContent: 'center',
+    paddingHorizontal: Theme.spacing.xl,
   },
-  header: {
+  logoContainer: {
+    flex: 1,
+    justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: Theme.spacing.xxl * 2,
+    paddingTop: 60,
   },
   logo: {
-    marginBottom: Theme.spacing.lg,
+    width: 180,
+    height: 180,
+  },
+  textContainer: {
+    alignItems: 'center',
+    paddingHorizontal: Theme.spacing.md,
   },
   title: {
-    fontSize: Theme.typography.fontSize['4xl'],
-    fontWeight: Theme.typography.fontWeight.bold,
-    color: '#000000',
+    fontSize: 32,
+    fontWeight: '700',
+    textAlign: 'center',
     marginBottom: Theme.spacing.md,
   },
   subtitle: {
-    fontSize: Theme.typography.fontSize.lg,
-    color: '#666666',
+    fontSize: 18,
     textAlign: 'center',
+    lineHeight: 26,
   },
-  actions: {
-    marginBottom: Theme.spacing.xl,
-  },
-  joinButton: {
-    marginTop: Theme.spacing.md,
-  },
-  social: {
-    marginTop: Theme.spacing.xl,
-    alignItems: 'center',
-  },
-  socialText: {
-    fontSize: Theme.typography.fontSize.sm,
-    color: '#999999',
-    marginBottom: Theme.spacing.md,
-  },
-  socialButtons: {
-    flexDirection: 'row',
-    gap: Theme.spacing.md,
-    width: '100%',
-  },
-  socialButton: {
+  spacer: {
     flex: 1,
   },
-  footer: {
-    marginTop: Theme.spacing.xl,
-    fontSize: Theme.typography.fontSize.xs,
-    color: '#999999',
-    textAlign: 'center',
-  },
-  link: {
-    color: '#8B5CF6',
+  buttonContainer: {
+    paddingBottom: Theme.spacing.lg,
   },
 });
 

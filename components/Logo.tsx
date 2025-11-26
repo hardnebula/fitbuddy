@@ -10,7 +10,7 @@ export function Logo({ size = 64, style }: LogoProps) {
   return (
     <View style={[styles.container, { width: size, height: size }, style]}>
       <Image 
-        source={require('../assets/images/Logo-teo.png')} 
+        source={require('../assets/images/Logo-teo-Photoroom.png')} 
         style={{ width: size, height: size }}
         resizeMode="contain"
       />

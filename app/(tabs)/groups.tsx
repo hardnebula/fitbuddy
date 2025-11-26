@@ -6,6 +6,7 @@ import {
   ScrollView,
   Image,
   TouchableOpacity,
+  StatusBar,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -15,10 +16,12 @@ import { EmptyState } from '../../components/EmptyState';
 import { ScreenTransition } from '../../components/ScreenTransition';
 import { AnimatedTitle } from '../../components/AnimatedTitle';
 import { Theme } from '../../constants/Theme';
+import { useTheme } from '../../contexts/ThemeContext';
 import { Group } from '../../types';
 
 export default function GroupsScreen() {
   const router = useRouter();
+  const { colors, isDark } = useTheme();
 
   // Mock groups data
   const groups: Group[] = [
@@ -43,14 +46,15 @@ export default function GroupsScreen() {
   if (groups.length === 0) {
     return (
       <ScreenTransition>
-      <SafeAreaView style={styles.container} edges={['top']}>
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
         <View style={styles.header}>
+          <AnimatedTitle style={StyleSheet.flatten([styles.title, { color: colors.text }])}>Your Groups</AnimatedTitle>
           <Image 
-            source={require('../../assets/images/Teo and Sirius.png')} 
+            source={isDark ? require('../../assets/images/Sirius and Teo dark mode.png') : require('../../assets/images/Sirius and Teo.png')} 
             style={styles.logo}
             resizeMode="contain"
           />
-          <AnimatedTitle style={styles.title}>Your Groups</AnimatedTitle>
         </View>
         <EmptyState
           message="No groups yet"
@@ -71,19 +75,20 @@ export default function GroupsScreen() {
 
   return (
     <ScreenTransition>
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.header}>
+          <AnimatedTitle style={StyleSheet.flatten([styles.title, { color: colors.text }])}>Your Groups</AnimatedTitle>
           <Image 
-            source={require('../../assets/images/Teo and Sirius.png')} 
+            source={isDark ? require('../../assets/images/Sirius and Teo dark mode.png') : require('../../assets/images/Sirius and Teo.png')} 
             style={styles.logo}
             resizeMode="contain"
           />
-          <AnimatedTitle style={styles.title}>Your Groups</AnimatedTitle>
         </View>
 
         {groups.map((group) => (
@@ -92,17 +97,17 @@ export default function GroupsScreen() {
             onPress={() => router.push('/(tabs)/home')}
             activeOpacity={0.8}
           >
-            <Card style={styles.groupCard}>
+            <Card style={StyleSheet.flatten([styles.groupCard, { backgroundColor: colors.cardSecondary }])}>
               <View style={styles.groupHeader}>
-                <Text style={styles.groupName}>{group.name}</Text>
-                <Text style={styles.membersCount}>
+                <Text style={[styles.groupName, { color: colors.text }]}>{group.name}</Text>
+                <Text style={[styles.membersCount, { color: colors.textTertiary }]}>
                   {group.members.length} members
                 </Text>
               </View>
               <View style={styles.groupStats}>
                 <View style={styles.statItem}>
-                  <Text style={styles.statLabel}>Group Streak</Text>
-                  <Text style={styles.statValue}>
+                  <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Group Streak</Text>
+                  <Text style={[styles.statValue, { color: colors.primary }]}>
                     {group.groupStreak} days 🔥
                   </Text>
                 </View>
@@ -139,13 +144,14 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     gap: Theme.spacing.md,
     marginBottom: Theme.spacing.xl,
+    paddingTop: Theme.spacing.sm,
   },
   logo: {
-    width: 50,
-    height: 50,
-    marginRight: Theme.spacing.xs,
+    width: 80,
+    height: 80,
   },
   title: {
     fontSize: 28,

@@ -15,6 +15,7 @@ import Animated, {
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Theme } from '../constants/Theme';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface ButtonProps {
   title: string;
@@ -39,6 +40,7 @@ export const Button: React.FC<ButtonProps> = ({
   style,
   textStyle,
 }) => {
+  const { colors } = useTheme();
   const scale = useSharedValue(1);
 
   const animatedStyle = useAnimatedStyle(() => {
@@ -68,7 +70,7 @@ export const Button: React.FC<ButtonProps> = ({
     styles.base,
     styles[size],
     fullWidth && styles.fullWidth,
-    variant === 'outline' && styles.outline,
+    variant === 'outline' && [styles.outline, { borderColor: colors.primary }],
     variant === 'ghost' && styles.ghost,
     (disabled || loading) && styles.disabled,
     style,
@@ -79,8 +81,8 @@ export const Button: React.FC<ButtonProps> = ({
   const buttonTextStyle = [
     styles.text,
     textSizeStyle,
-    variant === 'outline' && styles.outlineText,
-    variant === 'ghost' && styles.ghostText,
+    variant === 'outline' && { color: colors.primary },
+    variant === 'ghost' && { color: colors.primary },
     textStyle,
   ];
 
@@ -119,7 +121,7 @@ export const Button: React.FC<ButtonProps> = ({
       <Animated.View style={[buttonStyle, animatedStyle]}>
         {loading ? (
           <ActivityIndicator
-            color={variant === 'outline' ? '#8B5CF6' : '#FFFFFF'}
+            color={variant === 'outline' ? colors.primary : '#FFFFFF'}
           />
         ) : (
           <Text style={buttonTextStyle}>{title}</Text>
@@ -156,7 +158,6 @@ const styles = StyleSheet.create({
   outline: {
     backgroundColor: 'transparent',
     borderWidth: 2,
-    borderColor: '#8B5CF6',
   },
   ghost: {
     backgroundColor: 'transparent',
@@ -176,12 +177,6 @@ const styles = StyleSheet.create({
   },
   textLarge: {
     fontSize: Theme.typography.fontSize.lg,
-  },
-  outlineText: {
-    color: '#8B5CF6',
-  },
-  ghostText: {
-    color: '#8B5CF6',
   },
 });
 

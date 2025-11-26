@@ -8,6 +8,8 @@ import {
   Platform,
   TouchableOpacity,
   Alert,
+  Image,
+  StatusBar,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -15,11 +17,12 @@ import * as Clipboard from 'expo-clipboard';
 import { Button } from '../../components/Button';
 import { Input } from '../../components/Input';
 import { Card } from '../../components/Card';
-import { Logo } from '../../components/Logo';
 import { Theme } from '../../constants/Theme';
+import { useTheme } from '../../contexts/ThemeContext';
 
 export default function CreateGroupScreen() {
   const router = useRouter();
+  const { colors, isDark } = useTheme();
   const [groupName, setGroupName] = useState('');
   const [members, setMembers] = useState<string[]>([]);
   const [memberInput, setMemberInput] = useState('');
@@ -47,7 +50,9 @@ export default function CreateGroupScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+    <>
+    <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'bottom']}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
@@ -57,9 +62,20 @@ export default function CreateGroupScreen() {
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.content}>
+            <TouchableOpacity 
+              onPress={() => router.back()} 
+              style={styles.backButton}
+            >
+              <Text style={[styles.backButtonText, { color: colors.text }]}>← Back</Text>
+            </TouchableOpacity>
+            
             <View style={styles.header}>
-              <Logo size={80} style={styles.logo} />
-              <Text style={styles.title}>Create Your Group</Text>
+              <Image 
+                source={require('../../assets/images/Teo Treadmill-Photoroom.png')} 
+                style={styles.logo}
+                resizeMode="contain"
+              />
+              <Text style={[styles.title, { color: colors.text }]}>Create Your Group</Text>
             </View>
 
             <Input
@@ -70,7 +86,7 @@ export default function CreateGroupScreen() {
               autoCapitalize="words"
             />
 
-            <Text style={styles.description}>
+            <Text style={[styles.description, { color: colors.textSecondary }]}>
               Invite up to 4 friends
             </Text>
 
@@ -91,24 +107,24 @@ export default function CreateGroupScreen() {
             </View>
 
             {members.length > 0 && (
-              <Card style={styles.membersCard}>
-                <Text style={styles.membersTitle}>Members ({members.length}/4)</Text>
+              <Card style={StyleSheet.flatten([styles.membersCard, { backgroundColor: colors.cardSecondary }])}>
+                <Text style={[styles.membersTitle, { color: colors.text }]}>Members ({members.length}/4)</Text>
                 {members.map((member, index) => (
-                  <View key={index} style={styles.memberItem}>
-                    <Text style={styles.memberText}>{member}</Text>
+                  <View key={index} style={[styles.memberItem, { borderBottomColor: colors.border }]}>
+                    <Text style={[styles.memberText, { color: colors.textSecondary }]}>{member}</Text>
                   </View>
                 ))}
               </Card>
             )}
 
-            <Card style={styles.inviteCard}>
-              <Text style={styles.inviteLabel}>Invite Code</Text>
+            <Card style={StyleSheet.flatten([styles.inviteCard, { backgroundColor: colors.cardSecondary }])}>
+              <Text style={[styles.inviteLabel, { color: colors.textSecondary }]}>Invite Code</Text>
               <TouchableOpacity
                 onPress={handleCopyInviteCode}
                 style={styles.inviteCodeContainer}
               >
-                <Text style={styles.inviteCode}>{inviteCode}</Text>
-                <Text style={styles.copyText}>Tap to copy</Text>
+                <Text style={[styles.inviteCode, { color: colors.primary }]}>{inviteCode}</Text>
+                <Text style={[styles.copyText, { color: colors.textTertiary }]}>Tap to copy</Text>
               </TouchableOpacity>
             </Card>
 
@@ -123,13 +139,13 @@ export default function CreateGroupScreen() {
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
+    </>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
   },
   keyboardView: {
     flex: 1,
@@ -141,21 +157,30 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: Theme.spacing.xl,
   },
+  backButton: {
+    alignSelf: 'flex-start',
+    marginBottom: Theme.spacing.md,
+    paddingVertical: Theme.spacing.xs,
+  },
+  backButtonText: {
+    fontSize: Theme.typography.fontSize.base,
+    fontWeight: Theme.typography.fontWeight.semibold,
+  },
   header: {
     alignItems: 'center',
     marginBottom: Theme.spacing.xl,
   },
   logo: {
+    width: 100,
+    height: 100,
     marginBottom: Theme.spacing.lg,
   },
   title: {
     fontSize: 28,
     fontWeight: Theme.typography.fontWeight.bold,
-    color: '#000000',
   },
   description: {
     fontSize: Theme.typography.fontSize.base,
-    color: '#666666',
     marginBottom: Theme.spacing.md,
   },
   addMemberContainer: {
@@ -170,31 +195,25 @@ const styles = StyleSheet.create({
   },
   membersCard: {
     marginBottom: Theme.spacing.lg,
-    backgroundColor: '#F5F5F5',
   },
   membersTitle: {
     fontSize: Theme.typography.fontSize.md,
     fontWeight: Theme.typography.fontWeight.semibold,
-    color: '#000000',
     marginBottom: Theme.spacing.md,
   },
   memberItem: {
     paddingVertical: Theme.spacing.sm,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E5E5',
   },
   memberText: {
     fontSize: Theme.typography.fontSize.base,
-    color: '#666666',
   },
   inviteCard: {
     marginBottom: Theme.spacing.xl,
-    backgroundColor: '#F5F5F5',
   },
   inviteLabel: {
     fontSize: Theme.typography.fontSize.sm,
     fontWeight: Theme.typography.fontWeight.medium,
-    color: '#666666',
     marginBottom: Theme.spacing.sm,
   },
   inviteCodeContainer: {
@@ -203,12 +222,10 @@ const styles = StyleSheet.create({
   inviteCode: {
     fontSize: Theme.typography.fontSize.xl,
     fontWeight: Theme.typography.fontWeight.bold,
-    color: '#8B5CF6',
     marginBottom: Theme.spacing.xs,
   },
   copyText: {
     fontSize: Theme.typography.fontSize.xs,
-    color: '#999999',
   },
   createButton: {
     marginTop: Theme.spacing.lg,

@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { Theme } from '../constants/Theme';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface InputProps extends TextInputProps {
   label?: string;
@@ -22,19 +23,25 @@ export const Input: React.FC<InputProps> = ({
   style,
   ...props
 }) => {
+  const { colors } = useTheme();
   const [isFocused, setIsFocused] = useState(false);
 
   return (
     <View style={[styles.container, containerStyle]}>
-      {label && <Text style={styles.label}>{label}</Text>}
+      {label && <Text style={[styles.label, { color: colors.textSecondary }]}>{label}</Text>}
       <TextInput
         style={[
           styles.input,
+          {
+            backgroundColor: colors.cardSecondary,
+            borderColor: isFocused ? colors.primary : colors.border,
+            color: colors.text,
+          },
           isFocused && styles.inputFocused,
-          error && styles.inputError,
+          error && { borderColor: colors.error },
           style,
         ]}
-        placeholderTextColor="#999999"
+        placeholderTextColor={colors.textTertiary}
         onFocus={(e) => {
           setIsFocused(true);
           props.onFocus?.(e);
@@ -45,7 +52,7 @@ export const Input: React.FC<InputProps> = ({
         }}
         {...props}
       />
-      {error && <Text style={styles.errorText}>{error}</Text>}
+      {error && <Text style={[styles.errorText, { color: colors.error }]}>{error}</Text>}
     </View>
   );
 };
@@ -57,30 +64,21 @@ const styles = StyleSheet.create({
   label: {
     fontSize: Theme.typography.fontSize.sm,
     fontWeight: Theme.typography.fontWeight.medium,
-    color: '#666666',
     marginBottom: Theme.spacing.xs,
   },
   input: {
-    backgroundColor: '#F5F5F5',
     borderWidth: 1,
-    borderColor: '#E5E5E5',
     borderRadius: Theme.borderRadius.md,
     paddingHorizontal: Theme.spacing.md,
     paddingVertical: Theme.spacing.md,
     fontSize: Theme.typography.fontSize.base,
-    color: '#000000',
     minHeight: Theme.touchTarget.minHeight,
   },
   inputFocused: {
-    borderColor: '#8B5CF6',
     borderWidth: 2,
-  },
-  inputError: {
-    borderColor: Theme.colors.error,
   },
   errorText: {
     fontSize: Theme.typography.fontSize.xs,
-    color: Theme.colors.error,
     marginTop: Theme.spacing.xs,
   },
 });

@@ -33,3 +33,4 @@ echo "   EXPO_PUBLIC_CONVEX_URL=https://tu-proyecto.convex.cloud"
 
 
 
+

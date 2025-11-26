@@ -3,8 +3,11 @@ import { Platform, StyleSheet } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import * as Haptics from 'expo-haptics';
 import { Theme } from '../../constants/Theme';
+import { useTheme } from '../../contexts/ThemeContext';
 
 export default function TabsLayout() {
+  const { colors } = useTheme();
+  
   const handleTabPress = () => {
     // Haptic feedback al cambiar de tab
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -14,11 +17,11 @@ export default function TabsLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: '#8B5CF6',
-        tabBarInactiveTintColor: '#999999',
+        tabBarActiveTintColor: colors.primary,
+        tabBarInactiveTintColor: colors.textTertiary,
         tabBarStyle: {
-          backgroundColor: '#FFFFFF',
-          borderTopColor: '#E5E5E5',
+          backgroundColor: colors.surface,
+          borderTopColor: colors.border,
           borderTopWidth: 1,
           paddingTop: Platform.OS === 'ios' ? 8 : 4,
           paddingBottom: Platform.OS === 'ios' ? 20 : 8,

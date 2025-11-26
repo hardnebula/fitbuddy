@@ -7,6 +7,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
+  StatusBar,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -39,6 +40,8 @@ export default function JoinGroupScreen() {
   };
 
   return (
+    <>
+    <StatusBar barStyle="dark-content" />
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -93,6 +96,7 @@ export default function JoinGroupScreen() {
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
+    </>
   );
 }
 

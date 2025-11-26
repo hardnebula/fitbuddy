@@ -1,11 +1,11 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Text, TextStyle } from 'react-native';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withSpring,
-  withSequence,
 } from 'react-native-reanimated';
+import { useFocusEffect } from '@react-navigation/native';
 
 interface AnimatedTitleProps {
   children: React.ReactNode;
@@ -13,39 +13,40 @@ interface AnimatedTitleProps {
 }
 
 export const AnimatedTitle: React.FC<AnimatedTitleProps> = ({ children, style }) => {
-  const scale = useSharedValue(1);
-  const translateY = useSharedValue(0);
+  const opacity = useSharedValue(0);
+  const translateX = useSharedValue(30);
+  const [animationKey, setAnimationKey] = useState(0);
+
+  // Trigger animation on focus
+  useFocusEffect(
+    React.useCallback(() => {
+      setAnimationKey(prev => prev + 1);
+    }, [])
+  );
 
   useEffect(() => {
-    // Efecto de rebote sutil al montar
-    scale.value = withSequence(
-      withSpring(1.05, {
-        damping: 8,
-        stiffness: 100,
-      }),
-      withSpring(1, {
-        damping: 10,
-        stiffness: 100,
-      })
-    );
+    // Reset and animate
+    opacity.value = 0;
+    translateX.value = 30;
+    
+    // Efecto de swipe horizontal con fade
+    opacity.value = withSpring(1, {
+      damping: 15,
+      stiffness: 100,
+    });
 
-    translateY.value = withSequence(
-      withSpring(-3, {
-        damping: 8,
-        stiffness: 100,
-      }),
-      withSpring(0, {
-        damping: 10,
-        stiffness: 100,
-      })
-    );
-  }, [children]); // Se reactiva cuando cambia el texto
+    translateX.value = withSpring(0, {
+      damping: 15,
+      stiffness: 90,
+      mass: 0.8,
+    });
+  }, [animationKey, children]); // Se reactiva cuando cambia el texto o la pantalla
 
   const animatedStyle = useAnimatedStyle(() => {
     return {
+      opacity: opacity.value,
       transform: [
-        { scale: scale.value },
-        { translateY: translateY.value },
+        { translateX: translateX.value },
       ],
     };
   });
