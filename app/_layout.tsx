@@ -62,8 +62,22 @@ function RootNavigator() {
 						presentation: "card",
 					}}
 				/>
-				<Stack.Screen name="(auth)" options={{ headerShown: false }} />
-				<Stack.Screen name="(onboarding)" options={{ headerShown: false }} />
+				<Stack.Screen
+					name="(auth)"
+					options={{
+						headerShown: false,
+						animation: "slide_from_right",
+						presentation: "card",
+					}}
+				/>
+				<Stack.Screen
+					name="(onboarding)"
+					options={{
+						headerShown: false,
+						animation: "slide_from_right",
+						presentation: "card",
+					}}
+				/>
 				<Stack.Screen name="(tabs)" options={{ headerShown: false }} />
 			</Stack>
 		</View>

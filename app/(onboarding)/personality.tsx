@@ -9,8 +9,10 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import * as Haptics from 'expo-haptics';
 import { ProgressDots } from '../../components/ProgressDots';
 import { OnboardingNavigation } from '../../components/OnboardingNavigation';
+import { useScrollIndicator } from '../../components/ScrollIndicator';
 import { Theme } from '../../constants/Theme';
 import { useTheme } from '../../contexts/ThemeContext';
 
@@ -39,6 +41,13 @@ export default function PersonalityScreen() {
   const router = useRouter();
   const { colors, isDark } = useTheme();
   const [selectedPersonality, setSelectedPersonality] = useState<string | null>(null);
+  const {
+    contentHeight,
+    viewHeight,
+    handleScroll,
+    handleContentSizeChange,
+    handleLayout,
+  } = useScrollIndicator();
 
   const handleContinue = () => {
     if (selectedPersonality) {
@@ -50,53 +59,69 @@ export default function PersonalityScreen() {
     <>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
       <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'bottom']}>
-        <ProgressDots total={7} current={3} />
+        {/* Fixed Progress Dots - Always visible at top */}
+        <View style={styles.progressContainer}>
+          <ProgressDots total={7} current={3} />
+        </View>
         
-        <ScrollView
-          style={styles.scrollView}
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-        >
-          <View style={styles.content}>
-            <Text style={[styles.title, { color: colors.text }]}>How should FitBuddy talk to you?</Text>
-            <Text style={[styles.subtitle, { color: colors.textSecondary }]}>Choose your notification tone.</Text>
+        {/* Scrollable Content Area */}
+        <View style={styles.scrollContainer} onLayout={handleLayout}>
+          <ScrollView
+            style={styles.scrollView}
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={false}
+            onScroll={handleScroll}
+            onContentSizeChange={handleContentSizeChange}
+            scrollEventThrottle={16}
+            scrollEnabled={contentHeight > viewHeight + 5 && viewHeight > 0}
+          >
+            <View style={styles.content}>
+              <Text style={[styles.title, { color: colors.text }]}>How should FitBuddy talk to you?</Text>
+              <Text style={[styles.subtitle, { color: colors.textSecondary }]}>Choose your notification tone.</Text>
 
-            <View style={styles.cardsContainer}>
-              {PERSONALITIES.map((personality) => (
-                <TouchableOpacity
-                  key={personality.id}
-                  style={[
-                    styles.card,
-                    {
-                      backgroundColor: selectedPersonality === personality.id ? colors.primary + '15' : colors.card,
-                      borderColor: selectedPersonality === personality.id ? colors.primary : colors.border,
-                    },
-                  ]}
-                  onPress={() => setSelectedPersonality(personality.id)}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.emoji}>{personality.emoji}</Text>
-                  <View style={styles.cardContent}>
-                    <Text style={[
-                      styles.cardTitle,
-                      { color: selectedPersonality === personality.id ? colors.primary : colors.text },
-                    ]}>
-                      {personality.title}
-                    </Text>
-                    <Text style={[styles.cardDescription, { color: colors.textSecondary }]}>{personality.description}</Text>
-                  </View>
-                </TouchableOpacity>
-              ))}
+              <View style={styles.cardsContainer}>
+                {PERSONALITIES.map((personality) => (
+                  <TouchableOpacity
+                    key={personality.id}
+                    style={[
+                      styles.card,
+                      {
+                        backgroundColor: selectedPersonality === personality.id ? colors.primary + '15' : colors.card,
+                        borderColor: selectedPersonality === personality.id ? colors.primary : colors.border,
+                      },
+                    ]}
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      setSelectedPersonality(personality.id);
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.emoji}>{personality.emoji}</Text>
+                    <View style={styles.cardContent}>
+                      <Text style={[
+                        styles.cardTitle,
+                        { color: selectedPersonality === personality.id ? colors.primary : colors.text },
+                      ]}>
+                        {personality.title}
+                      </Text>
+                      <Text style={[styles.cardDescription, { color: colors.textSecondary }]}>{personality.description}</Text>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </View>
             </View>
-          </View>
-        </ScrollView>
+          </ScrollView>
+        </View>
 
-        <OnboardingNavigation
-          onBack={() => router.back()}
-          onNext={handleContinue}
-          nextLabel="Next"
-          nextDisabled={!selectedPersonality}
-        />
+        {/* Fixed Navigation Buttons - Always visible at bottom */}
+        <View style={styles.navigationContainer}>
+          <OnboardingNavigation
+            onBack={() => router.back()}
+            onNext={handleContinue}
+            nextLabel="Next"
+            nextDisabled={!selectedPersonality}
+          />
+        </View>
       </SafeAreaView>
     </>
   );
@@ -106,14 +131,26 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  progressContainer: {
+    paddingTop: Theme.spacing.sm,
+    paddingBottom: Theme.spacing.xs,
+  },
+  scrollContainer: {
+    flex: 1,
+  },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
     paddingHorizontal: Theme.spacing.xl,
+    flexGrow: 1,
   },
   content: {
     paddingTop: Theme.spacing.lg,
+    paddingBottom: Theme.spacing.md,
+  },
+  navigationContainer: {
+    paddingTop: Theme.spacing.sm,
   },
   title: {
     fontSize: 28,

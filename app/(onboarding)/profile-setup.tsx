@@ -15,6 +15,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { Input } from '../../components/Input';
 import { ProgressDots } from '../../components/ProgressDots';
 import { OnboardingNavigation } from '../../components/OnboardingNavigation';
+import { useScrollIndicator } from '../../components/ScrollIndicator';
 import { Theme } from '../../constants/Theme';
 import { useTheme } from '../../contexts/ThemeContext';
 
@@ -29,6 +30,13 @@ export default function ProfileSetupScreen() {
   const [name, setName] = useState('');
   const [photo, setPhoto] = useState<string | null>(null);
   const [selectedTheme, setSelectedTheme] = useState<'light' | 'dark'>(isDark ? 'dark' : 'light');
+  const {
+    contentHeight,
+    viewHeight,
+    handleScroll,
+    handleContentSizeChange,
+    handleLayout,
+  } = useScrollIndicator();
 
   // Inicializar con el tema actual
   useEffect(() => {
@@ -68,77 +76,90 @@ export default function ProfileSetupScreen() {
     <>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
       <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'bottom']}>
-        <ProgressDots total={7} current={5} />
+        {/* Fixed Progress Dots - Always visible at top */}
+        <View style={styles.progressContainer}>
+          <ProgressDots total={7} current={5} />
+        </View>
         
-        <ScrollView
-          style={styles.scrollView}
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-        >
-          <View style={styles.content}>
-            <Text style={[styles.title, { color: colors.text }]}>Set up your profile</Text>
+        {/* Scrollable Content Area */}
+        <View style={styles.scrollContainer} onLayout={handleLayout}>
+          <ScrollView
+            style={styles.scrollView}
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={false}
+            onScroll={handleScroll}
+            onContentSizeChange={handleContentSizeChange}
+            scrollEventThrottle={16}
+            scrollEnabled={contentHeight > viewHeight + 5 && viewHeight > 0}
+          >
+            <View style={styles.content}>
+              <Text style={[styles.title, { color: colors.text }]}>Set up your profile</Text>
 
-            {/* Photo Picker */}
-            <TouchableOpacity
-              style={styles.photoContainer}
-              onPress={handlePickPhoto}
-              activeOpacity={0.7}
-            >
-              {photo ? (
-                <Image source={{ uri: photo }} style={styles.photo} />
-              ) : (
-                <View style={[styles.photoPlaceholder, { backgroundColor: colors.cardSecondary, borderColor: colors.border }]}>
-                  <Text style={[styles.photoPlaceholderText, { color: colors.textTertiary }]}>+</Text>
-                  <Text style={[styles.photoLabel, { color: colors.textTertiary }]}>Add Photo</Text>
+              {/* Photo Picker */}
+              <TouchableOpacity
+                style={styles.photoContainer}
+                onPress={handlePickPhoto}
+                activeOpacity={0.7}
+              >
+                {photo ? (
+                  <Image source={{ uri: photo }} style={styles.photo} />
+                ) : (
+                  <View style={[styles.photoPlaceholder, { backgroundColor: colors.cardSecondary, borderColor: colors.border }]}>
+                    <Text style={[styles.photoPlaceholderText, { color: colors.textTertiary }]}>+</Text>
+                    <Text style={[styles.photoLabel, { color: colors.textTertiary }]}>Add Photo</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+
+              {/* Name Input */}
+              <Input
+                label="Name"
+                value={name}
+                onChangeText={setName}
+                placeholder="Enter your name"
+                autoCapitalize="words"
+              />
+
+              {/* Theme Selector */}
+              <View style={styles.themeSection}>
+                <Text style={[styles.themeLabel, { color: colors.text }]}>Theme</Text>
+                <View style={styles.themeOptions}>
+                  {THEMES.map((theme) => (
+                    <TouchableOpacity
+                      key={theme.id}
+                      style={[
+                        styles.themeChip,
+                        { 
+                          backgroundColor: selectedTheme === theme.id ? colors.primary + '15' : colors.cardSecondary,
+                          borderColor: selectedTheme === theme.id ? colors.primary : colors.border,
+                        },
+                      ]}
+                      onPress={() => handleThemeChange(theme.id as 'light' | 'dark')}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={[
+                        styles.themeChipText,
+                        { color: selectedTheme === theme.id ? colors.primary : colors.text },
+                      ]}>
+                        {theme.label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
                 </View>
-              )}
-            </TouchableOpacity>
-
-            {/* Name Input */}
-            <Input
-              label="Name"
-              value={name}
-              onChangeText={setName}
-              placeholder="Enter your name"
-              autoCapitalize="words"
-            />
-
-            {/* Theme Selector */}
-            <View style={styles.themeSection}>
-              <Text style={[styles.themeLabel, { color: colors.text }]}>Theme</Text>
-              <View style={styles.themeOptions}>
-                {THEMES.map((theme) => (
-                  <TouchableOpacity
-                    key={theme.id}
-                    style={[
-                      styles.themeChip,
-                      { 
-                        backgroundColor: selectedTheme === theme.id ? colors.primary + '15' : colors.cardSecondary,
-                        borderColor: selectedTheme === theme.id ? colors.primary : colors.border,
-                      },
-                    ]}
-                    onPress={() => handleThemeChange(theme.id as 'light' | 'dark')}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={[
-                      styles.themeChipText,
-                      { color: selectedTheme === theme.id ? colors.primary : colors.text },
-                    ]}>
-                      {theme.label}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
               </View>
             </View>
-          </View>
-        </ScrollView>
+          </ScrollView>
+        </View>
 
-        <OnboardingNavigation
-          onBack={() => router.back()}
-          onNext={handleFinish}
-          nextLabel="Finish"
-          nextDisabled={!name.trim()}
-        />
+        {/* Fixed Navigation Buttons - Always visible at bottom */}
+        <View style={styles.navigationContainer}>
+          <OnboardingNavigation
+            onBack={() => router.back()}
+            onNext={handleFinish}
+            nextLabel="Finish"
+            nextDisabled={!name.trim()}
+          />
+        </View>
       </SafeAreaView>
     </>
   );
@@ -148,14 +169,27 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  progressContainer: {
+    paddingTop: Theme.spacing.sm,
+    paddingBottom: Theme.spacing.xs,
+  },
+  scrollContainer: {
+    flex: 1,
+  },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
     paddingHorizontal: Theme.spacing.xl,
+    flexGrow: 1,
   },
   content: {
     paddingTop: Theme.spacing.lg,
+    paddingBottom: Theme.spacing.md,
+    paddingBottom: Theme.spacing.xl,
+  },
+  navigationContainer: {
+    paddingTop: Theme.spacing.sm,
   },
   title: {
     fontSize: 28,

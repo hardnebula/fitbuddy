@@ -5,8 +5,12 @@ import {
   Text,
   StyleSheet,
   TextInputProps,
-  TouchableOpacity,
 } from 'react-native';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
 import { Theme } from '../constants/Theme';
 import { useTheme } from '../contexts/ThemeContext';
 
@@ -15,6 +19,8 @@ interface InputProps extends TextInputProps {
   error?: string;
   containerStyle?: any;
 }
+
+const AnimatedTextInput = Animated.createAnimatedComponent(TextInput);
 
 export const Input: React.FC<InputProps> = ({
   label,
@@ -25,61 +31,89 @@ export const Input: React.FC<InputProps> = ({
 }) => {
   const { colors } = useTheme();
   const [isFocused, setIsFocused] = useState(false);
+  const borderWidth = useSharedValue(1);
+  const scale = useSharedValue(1);
+
+  const handleFocus = (e: any) => {
+    setIsFocused(true);
+    borderWidth.value = withTiming(2, { duration: 200 });
+    scale.value = withTiming(1.01, { duration: 200 });
+    props.onFocus?.(e);
+  };
+
+  const handleBlur = (e: any) => {
+    setIsFocused(false);
+    borderWidth.value = withTiming(1, { duration: 200 });
+    scale.value = withTiming(1, { duration: 200 });
+    props.onBlur?.(e);
+  };
+
+  const animatedInputStyle = useAnimatedStyle(() => {
+    return {
+      borderWidth: borderWidth.value,
+      transform: [{ scale: scale.value }],
+    };
+  });
 
   return (
     <View style={[styles.container, containerStyle]}>
-      {label && <Text style={[styles.label, { color: colors.textSecondary }]}>{label}</Text>}
-      <TextInput
+      {label && (
+        <Text style={[styles.label, { color: colors.textSecondary }]}>
+          {label}
+        </Text>
+      )}
+      <AnimatedTextInput
         style={[
           styles.input,
+          animatedInputStyle,
           {
             backgroundColor: colors.cardSecondary,
-            borderColor: isFocused ? colors.primary : colors.border,
+            borderColor: isFocused
+              ? colors.primary
+              : error
+              ? colors.error
+              : colors.border,
             color: colors.text,
           },
-          isFocused && styles.inputFocused,
-          error && { borderColor: colors.error },
           style,
         ]}
         placeholderTextColor={colors.textTertiary}
-        onFocus={(e) => {
-          setIsFocused(true);
-          props.onFocus?.(e);
-        }}
-        onBlur={(e) => {
-          setIsFocused(false);
-          props.onBlur?.(e);
-        }}
+        onFocus={handleFocus}
+        onBlur={handleBlur}
         {...props}
       />
-      {error && <Text style={[styles.errorText, { color: colors.error }]}>{error}</Text>}
+      {error && (
+        <Text style={[styles.errorText, { color: colors.error }]}>
+          {error}
+        </Text>
+      )}
     </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
-    marginBottom: Theme.spacing.md,
+    marginBottom: Theme.spacing.lg,
   },
   label: {
     fontSize: Theme.typography.fontSize.sm,
-    fontWeight: Theme.typography.fontWeight.medium,
-    marginBottom: Theme.spacing.xs,
+    fontWeight: Theme.typography.fontWeight.semibold,
+    marginBottom: Theme.spacing.sm,
+    letterSpacing: 0.2,
   },
   input: {
     borderWidth: 1,
-    borderRadius: Theme.borderRadius.md,
-    paddingHorizontal: Theme.spacing.md,
+    borderRadius: Theme.borderRadius.lg,
+    paddingHorizontal: Theme.spacing.lg,
     paddingVertical: Theme.spacing.md,
     fontSize: Theme.typography.fontSize.base,
-    minHeight: Theme.touchTarget.minHeight,
-  },
-  inputFocused: {
-    borderWidth: 2,
+    minHeight: 56,
+    fontWeight: Theme.typography.fontWeight.normal,
   },
   errorText: {
     fontSize: Theme.typography.fontSize.xs,
     marginTop: Theme.spacing.xs,
+    fontWeight: Theme.typography.fontWeight.medium,
   },
 });
 
