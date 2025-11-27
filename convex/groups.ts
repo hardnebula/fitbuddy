@@ -150,7 +150,7 @@ export const getGroupByInviteCode = query({
   },
 });
 
-// Get user's groups
+// Get user's groups with member counts
 export const getUserGroups = query({
   args: { userId: v.id("users") },
   handler: async (ctx, args) => {
@@ -164,9 +164,17 @@ export const getUserGroups = query({
       memberships.map(async (membership) => {
         const group = await ctx.db.get(membership.groupId);
         if (group && !group.isArchived) {
+          // Count active members for this group
+          const activeMembers = await ctx.db
+            .query("groupMembers")
+            .withIndex("by_group", (q) => q.eq("groupId", group._id))
+            .filter((q) => q.eq(q.field("isActive"), true))
+            .collect();
+
           return {
             ...group,
             membershipId: membership._id,
+            memberCount: activeMembers.length,
           };
         }
         return null;

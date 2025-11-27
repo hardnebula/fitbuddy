@@ -15,6 +15,7 @@ import { OnboardingNavigation } from '../../components/OnboardingNavigation';
 import { ScrollIndicator, useScrollIndicator } from '../../components/ScrollIndicator';
 import { Theme } from '../../constants/Theme';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useOnboarding } from '../../contexts/OnboardingContext';
 
 const ACTIVITIES = [
   '🏋️ Gym',
@@ -28,11 +29,13 @@ const ACTIVITIES = [
 export default function ActivityStyleScreen() {
   const router = useRouter();
   const { colors, isDark } = useTheme();
+  const { updateOnboardingData } = useOnboarding();
   const [selectedActivity, setSelectedActivity] = useState<string | null>(null);
   const { scrollPosition, contentHeight, viewHeight, handleScroll, handleContentSizeChange, handleLayout } = useScrollIndicator();
 
-  const handleContinue = () => {
+  const handleContinue = async () => {
     if (selectedActivity) {
+      await updateOnboardingData({ activityStyle: selectedActivity });
       router.push('/(onboarding)/accountability');
     }
   };

@@ -44,7 +44,7 @@ export default defineSchema({
   // Check-ins table
   checkIns: defineTable({
     userId: v.id("users"),
-    groupId: v.id("groups"),
+    groupId: v.optional(v.id("groups")),
     timestamp: v.number(),
     photo: v.optional(v.string()),
     note: v.optional(v.string()),

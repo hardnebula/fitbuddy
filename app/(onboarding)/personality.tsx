@@ -15,6 +15,7 @@ import { OnboardingNavigation } from '../../components/OnboardingNavigation';
 import { useScrollIndicator } from '../../components/ScrollIndicator';
 import { Theme } from '../../constants/Theme';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useOnboarding } from '../../contexts/OnboardingContext';
 
 const PERSONALITIES = [
   {
@@ -40,6 +41,7 @@ const PERSONALITIES = [
 export default function PersonalityScreen() {
   const router = useRouter();
   const { colors, isDark } = useTheme();
+  const { updateOnboardingData } = useOnboarding();
   const [selectedPersonality, setSelectedPersonality] = useState<string | null>(null);
   const {
     contentHeight,
@@ -49,8 +51,9 @@ export default function PersonalityScreen() {
     handleLayout,
   } = useScrollIndicator();
 
-  const handleContinue = () => {
+  const handleContinue = async () => {
     if (selectedPersonality) {
+      await updateOnboardingData({ personality: selectedPersonality });
       router.push('/(onboarding)/training-time');
     }
   };

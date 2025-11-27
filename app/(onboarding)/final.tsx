@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import {
 	View,
 	Text,
@@ -15,10 +15,12 @@ import { ProgressDots } from "../../components/ProgressDots";
 import { useScrollIndicator } from "../../components/ScrollIndicator";
 import { Theme } from "../../constants/Theme";
 import { useTheme } from "../../contexts/ThemeContext";
+import { useOnboarding } from "../../contexts/OnboardingContext";
 
 export default function FinalScreen() {
 	const router = useRouter();
 	const { colors, isDark } = useTheme();
+	const { markOnboardingComplete } = useOnboarding();
 	const {
 		contentHeight,
 		viewHeight,
@@ -26,6 +28,19 @@ export default function FinalScreen() {
 		handleContentSizeChange,
 		handleLayout,
 	} = useScrollIndicator();
+
+	// Mark onboarding as complete when screen mounts
+	useEffect(() => {
+		const markComplete = async () => {
+			try {
+				await markOnboardingComplete();
+			} catch (error) {
+				console.error("Error marking onboarding complete:", error);
+			}
+		};
+		markComplete();
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, []);
 
 	const handleCreateGroup = () => {
 		router.push("/(auth)/create-group");

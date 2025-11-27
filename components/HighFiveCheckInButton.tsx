@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { StyleSheet, Text, View, Pressable } from 'react-native';
 import Animated, {
   useSharedValue,
@@ -8,41 +8,81 @@ import Animated, {
   withSequence,
   withDelay,
   Easing,
+  interpolate,
 } from 'react-native-reanimated';
+import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import Svg, { Path } from 'react-native-svg';
+import SquircleView from '@/components/SquircleView';
 import * as Haptics from 'expo-haptics';
-import { Video, ResizeMode } from 'expo-av';
+import { useTheme } from '@/contexts/ThemeContext';
+import { Theme } from '@/constants/Theme';
 
 const mascot = require('../assets/images/Teo High Five-Photoroom.png');
-const buttonAnimation = require('../assets/videos/Button animation.mp4');
+
+// Helper to calculate time until midnight
+function getTimeUntilMidnight() {
+  const now = new Date();
+  const midnight = new Date(now);
+  midnight.setHours(24, 0, 0, 0);
+  const diff = midnight.getTime() - now.getTime();
+  
+  const hours = Math.floor(diff / (1000 * 60 * 60));
+  const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+  
+  return { hours, minutes, totalMs: diff };
+}
+
+// Helper to calculate progress through the day (0 to 1)
+function getDayProgress() {
+  const now = new Date();
+  const startOfDay = new Date(now);
+  startOfDay.setHours(0, 0, 0, 0);
+  
+  const elapsed = now.getTime() - startOfDay.getTime();
+  const totalDay = 24 * 60 * 60 * 1000;
+  
+  return elapsed / totalDay;
+}
 
 interface HighFiveCheckInButtonProps {
   onPress: () => void;
   disabled?: boolean;
+  hasCheckedIn?: boolean;
 }
 
 export const HighFiveCheckInButton: React.FC<HighFiveCheckInButtonProps> = ({
   onPress,
   disabled = false,
+  hasCheckedIn = false,
 }) => {
-  const videoRef = useRef<Video>(null);
-  const [showVideo, setShowVideo] = useState(false);
-  const [isVideoLoaded, setIsVideoLoaded] = useState(false);
+  const { colors, isDark } = useTheme();
+  
+  // Timer state
+  const [timeLeft, setTimeLeft] = useState(getTimeUntilMidnight());
+  const [progress, setProgress] = useState(getDayProgress());
+  
+  // Update timer every minute when checked in
+  useEffect(() => {
+    if (!hasCheckedIn) return;
+    
+    const updateTimer = () => {
+      setTimeLeft(getTimeUntilMidnight());
+      setProgress(getDayProgress());
+    };
+    
+    updateTimer();
+    const interval = setInterval(updateTimer, 60000); // Update every minute
+    
+    return () => clearInterval(interval);
+  }, [hasCheckedIn]);
   
   // Animation values
   const scale = useSharedValue(1);
-  const handTranslateX = useSharedValue(0);
-  const mascotTranslateX = useSharedValue(0);
+  const mascotScale = useSharedValue(1);
+  const mascotRotate = useSharedValue(0);
   const glowOpacity = useSharedValue(0);
-  
-  // Spark animations
-  const spark1Scale = useSharedValue(0.4);
-  const spark1Opacity = useSharedValue(0);
-  const spark2Scale = useSharedValue(0.4);
-  const spark2Opacity = useSharedValue(0);
-  const spark3Scale = useSharedValue(0.4);
-  const spark3Opacity = useSharedValue(0);
+  const rippleScale = useSharedValue(0);
+  const rippleOpacity = useSharedValue(0);
 
   const handlePressIn = () => {
     if (disabled) return;
@@ -63,80 +103,43 @@ export const HighFiveCheckInButton: React.FC<HighFiveCheckInButtonProps> = ({
       withSpring(1.0, { damping: 12, stiffness: 200 })
     );
 
-    // Hand slap animation
-    handTranslateX.value = withSequence(
-      withTiming(-12, { duration: 120, easing: Easing.out(Easing.cubic) }),
-      withTiming(0, { duration: 120, easing: Easing.inOut(Easing.cubic) })
+    // Mascot celebration animation - bounce and rotate
+    mascotScale.value = withSequence(
+      withSpring(1.15, { damping: 8, stiffness: 300 }),
+      withSpring(1.0, { damping: 10, stiffness: 200 })
+    );
+    
+    mascotRotate.value = withSequence(
+      withTiming(-8, { duration: 100, easing: Easing.out(Easing.cubic) }),
+      withTiming(8, { duration: 100, easing: Easing.inOut(Easing.cubic) }),
+      withTiming(0, { duration: 100, easing: Easing.in(Easing.cubic) })
     );
 
-    mascotTranslateX.value = withSequence(
-      withTiming(8, { duration: 120, easing: Easing.out(Easing.cubic) }),
-      withTiming(0, { duration: 120, easing: Easing.inOut(Easing.cubic) })
-    );
+    // Ripple effect
+    rippleScale.value = 0;
+    rippleOpacity.value = 0.2;
+    rippleScale.value = withTiming(3, {
+      duration: 500,
+      easing: Easing.out(Easing.cubic),
+    });
+    rippleOpacity.value = withTiming(0, {
+      duration: 500,
+      easing: Easing.out(Easing.cubic),
+    });
 
     // Glow effect
     glowOpacity.value = withSequence(
-      withTiming(0.15, { duration: 50 }),
-      withTiming(0, { duration: 150, easing: Easing.out(Easing.cubic) })
-    );
-
-    // Spark 1
-    spark1Scale.value = 0.4;
-    spark1Opacity.value = 1;
-    spark1Scale.value = withTiming(1.2, { duration: 220, easing: Easing.out(Easing.cubic) });
-    spark1Opacity.value = withDelay(
-      100,
-      withTiming(0, { duration: 120, easing: Easing.out(Easing.cubic) })
-    );
-
-    // Spark 2 (slightly delayed)
-    spark2Scale.value = 0.4;
-    spark2Opacity.value = 1;
-    spark2Scale.value = withDelay(
-      20,
-      withTiming(1.2, { duration: 200, easing: Easing.out(Easing.cubic) })
-    );
-    spark2Opacity.value = withDelay(
-      120,
-      withTiming(0, { duration: 100, easing: Easing.out(Easing.cubic) })
-    );
-
-    // Spark 3 (more delayed)
-    spark3Scale.value = 0.4;
-    spark3Opacity.value = 1;
-    spark3Scale.value = withDelay(
-      40,
-      withTiming(1.2, { duration: 240, easing: Easing.out(Easing.cubic) })
-    );
-    spark3Opacity.value = withDelay(
-      140,
-      withTiming(0, { duration: 120, easing: Easing.out(Easing.cubic) })
+      withTiming(0.2, { duration: 100 }),
+      withTiming(0, { duration: 300, easing: Easing.out(Easing.cubic) })
     );
 
     // Haptic feedback
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
   };
 
-  const handlePress = async () => {
+  const handlePress = () => {
     if (disabled) return;
-    
-    // Mostrar y reproducir el video
-    setShowVideo(true);
-    if (videoRef.current && isVideoLoaded) {
-      try {
-        await videoRef.current.setPositionAsync(0);
-        await videoRef.current.playAsync();
-      } catch (error) {
-        console.log('Error playing video:', error);
-      }
-    }
-    
     onPress();
-  };
-
-  const handleVideoEnd = () => {
-    // Ocultar el video cuando termine
-    setShowVideo(false);
   };
 
   // Animated styles
@@ -144,31 +147,20 @@ export const HighFiveCheckInButton: React.FC<HighFiveCheckInButtonProps> = ({
     transform: [{ scale: scale.value }],
   }));
 
-  const handAnimatedStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: handTranslateX.value }],
-  }));
-
   const mascotAnimatedStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: mascotTranslateX.value }],
+    transform: [
+      { scale: mascotScale.value },
+      { rotate: `${mascotRotate.value}deg` },
+    ],
   }));
 
   const glowAnimatedStyle = useAnimatedStyle(() => ({
     opacity: glowOpacity.value,
   }));
 
-  const spark1AnimatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: spark1Scale.value }],
-    opacity: spark1Opacity.value,
-  }));
-
-  const spark2AnimatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: spark2Scale.value }],
-    opacity: spark2Opacity.value,
-  }));
-
-  const spark3AnimatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: spark3Scale.value }],
-    opacity: spark3Opacity.value,
+  const rippleAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: rippleScale.value }],
+    opacity: rippleOpacity.value,
   }));
 
   return (
@@ -180,67 +172,79 @@ export const HighFiveCheckInButton: React.FC<HighFiveCheckInButtonProps> = ({
       style={[styles.pressable, disabled && styles.disabled]}
     >
       <Animated.View style={[styles.container, containerAnimatedStyle]}>
-        {/* Video overlay - siempre montado pero oculto hasta que se presiona */}
-        <View style={[styles.videoOverlay, !showVideo && styles.videoHidden]}>
-          <Video
-            ref={videoRef}
-            source={buttonAnimation}
-            style={styles.video}
-            resizeMode={ResizeMode.COVER}
-            shouldPlay={false}
-            isLooping={false}
-            isMuted={true}
-            onLoad={() => setIsVideoLoaded(true)}
-            onPlaybackStatusUpdate={(status) => {
-              if (status.isLoaded && status.didJustFinish) {
-                handleVideoEnd();
-              }
-            }}
-          />
-        </View>
-        
-        <LinearGradient
-          colors={['#3B82F6', '#8B5CF6']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
-          style={styles.gradient}
-        >
-          {/* Glow overlay */}
-          <Animated.View style={[styles.glowOverlay, glowAnimatedStyle]} />
-
-          {/* Mascot */}
-          <Animated.Image
-            source={mascot}
-            style={[styles.mascot, mascotAnimatedStyle]}
-            resizeMode="contain"
-          />
-
-          {/* Text content */}
-          <View style={styles.textContainer}>
-            <Text style={styles.title}>High five to check in</Text>
-            <Text style={styles.subtitle}>Your group is counting on you</Text>
-          </View>
-
-          {/* Hand icon container with sparks */}
-          <View style={styles.handContainer}>
-            <Animated.View style={[styles.handCircle, handAnimatedStyle]}>
-              <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
-                <Path
-                  d="M7 11V7C7 5.89543 7.89543 5 9 5C10.1046 5 11 5.89543 11 7M11 7V3C11 1.89543 11.8954 1 13 1C14.1046 1 15 1.89543 15 3V7M11 7V11M15 7V11M15 7V5C15 3.89543 15.8954 3 17 3C18.1046 3 19 3.89543 19 5V11M19 11V13C19 17.4183 15.4183 21 11 21H10C6.68629 21 4 18.3137 4 15V13C4 11.8954 4.89543 11 6 11C7.10457 11 8 11.8954 8 13"
-                  stroke="#3B82F6"
-                  strokeWidth={2}
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </Svg>
+          <SquircleView
+            style={[
+              styles.clayContainer,
+              { 
+                backgroundColor: colors.card,
+                borderRadius: 24,
+                borderWidth: 1,
+                borderColor: colors.border
+              },
+            ]}
+            cornerSmoothing={1.0}
+          >
+            {/* Content - rendered first so it's on top */}
+            <View style={styles.content}>
+            {/* Mascot - ensure it's on top layer */}
+            <Animated.View style={[styles.mascotContainer, mascotAnimatedStyle]}>
+              <Image
+                source={mascot}
+                style={styles.mascot}
+                contentFit="contain"
+                transition={200}
+                cachePolicy="memory-disk"
+                priority="high"
+              />
             </Animated.View>
 
-            {/* Sparks */}
-            <Animated.View style={[styles.spark, styles.spark1, spark1AnimatedStyle]} />
-            <Animated.View style={[styles.spark, styles.spark2, spark2AnimatedStyle]} />
-            <Animated.View style={[styles.spark, styles.spark3, spark3AnimatedStyle]} />
+            {/* Text content */}
+            <View style={styles.textContainer}>
+              <Text style={[styles.title, { color: colors.text }]}>
+                {hasCheckedIn ? "You crushed it! 💪" : "High five to check in"}
+              </Text>
+              <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+                {hasCheckedIn 
+                  ? `Next check-in in ${timeLeft.hours}h ${timeLeft.minutes}m`
+                  : "Your group is counting on you"}
+              </Text>
+              
+              {/* Progress bar - only show when checked in */}
+              {hasCheckedIn && (
+                <View style={styles.progressContainer}>
+                  <View 
+                    style={[
+                      styles.progressBackground,
+                      { backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' }
+                    ]}
+                  >
+                    <View
+                      style={[
+                        styles.progressFill,
+                        { 
+                          width: `${progress * 100}%`,
+                          backgroundColor: colors.primary
+                        }
+                      ]}
+                    />
+                  </View>
+                </View>
+              )}
+            </View>
           </View>
-        </LinearGradient>
+
+          {/* Ripple effect - behind content */}
+          <Animated.View
+            style={[
+              styles.ripple,
+              { backgroundColor: colors.primary },
+              rippleAnimatedStyle,
+            ]}
+          />
+
+          {/* Glow overlay - behind content */}
+          <Animated.View style={[styles.glowOverlay, glowAnimatedStyle]} />
+        </SquircleView>
       </Animated.View>
     </Pressable>
   );
@@ -255,84 +259,78 @@ const styles = StyleSheet.create({
   },
   container: {
     width: '100%',
-    borderRadius: 24,
     overflow: 'hidden',
   },
-  videoOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    zIndex: 10,
-    borderRadius: 24,
-    overflow: 'hidden',
-  },
-  videoHidden: {
-    opacity: 0,
-    zIndex: -1,
-  },
-  video: {
+  clayContainer: {
     width: '100%',
-    height: '100%',
+    overflow: 'hidden',
+    // Soft shadows for claymorphism
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.05,
+    shadowRadius: 12,
+    elevation: 2,
   },
-  gradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-    gap: 12,
+  ripple: {
+    position: 'absolute',
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    alignSelf: 'center',
+    top: '50%',
+    marginTop: -50,
+    zIndex: 1,
   },
   glowOverlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: '#FFFFFF',
+    zIndex: 2,
+  },
+  content: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 24,
+    paddingHorizontal: 20,
+    gap: 18,
+    minHeight: 110,
+    zIndex: 10,
+    position: 'relative',
+  },
+  mascotContainer: {
+    zIndex: 11,
   },
   mascot: {
-    width: 80,
-    height: 80,
-    opacity: 0.9,
+    width: 96,
+    height: 96,
   },
   textContainer: {
     flex: 1,
-    gap: 2,
+    gap: 6,
   },
   title: {
-    fontSize: 16,
+    fontSize: 28,
     fontWeight: '600',
-    color: '#FFFFFF',
+    letterSpacing: -0.4,
+    lineHeight: 34,
   },
   subtitle: {
-    fontSize: 13,
+    fontSize: 16,
     fontWeight: '400',
-    color: '#FFFFFF',
-    opacity: 0.85,
+    lineHeight: 20,
   },
-  handContainer: {
-    position: 'relative',
-    width: 32,
-    height: 32,
+  progressContainer: {
+    marginTop: 8,
   },
-  handCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  spark: {
-    position: 'absolute',
-    width: 6,
+  progressBackground: {
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#FFFFFF',
+    overflow: 'hidden',
   },
-  spark1: {
-    top: 8,
-    left: -4,
-  },
-  spark2: {
-    top: 4,
-    left: -2,
-  },
-  spark3: {
-    top: 12,
-    left: -6,
+  progressFill: {
+    height: '100%',
+    borderRadius: 3,
   },
 });

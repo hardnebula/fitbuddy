@@ -1,47 +1,68 @@
-import { useMutation, useQuery } from './convex';
-import { api } from '../convex/_generated/api';
-import { Id } from '../convex/_generated/dataModel';
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { convexQuery, useConvexMutation } from "@convex-dev/react-query";
+import { api } from "@/convex/_generated/api";
+import { Id } from "@/convex/_generated/dataModel";
 
 // Hook for user authentication
 export function useAuth() {
-  const getOrCreateUser = useMutation(api.users.getOrCreateUser);
+	const getOrCreateUserMutationFn = useConvexMutation(api.users.getOrCreateUser);
 
-  const login = async (email: string, name: string, avatar?: string) => {
-    try {
-      const userId = await getOrCreateUser({
-        email,
-        name,
-        avatar,
-      });
-      return userId;
-    } catch (error) {
-      console.error('Login error:', error);
-      throw error;
-    }
-  };
+	const getOrCreateUserMutation = useMutation({
+		mutationFn: getOrCreateUserMutationFn,
+	});
 
-  return {
-    login,
-  };
+	// Convenience async function for backward compatibility
+	const login = async (email: string, name: string, avatar?: string) => {
+		try {
+			const userId = await getOrCreateUserMutation.mutateAsync({
+				email,
+				name,
+				avatar,
+			});
+			return userId;
+		} catch (error) {
+			console.error("Login error:", error);
+			throw error;
+		}
+	};
+
+	return {
+		// TanStack Query mutation object (for advanced usage)
+		getOrCreateUserMutation,
+		// Convenience async function (for backward compatibility)
+		login,
+	};
 }
 
 // Hook to get user by email
 export function useUserByEmail(email: string | null) {
-  const user = useQuery(
-    api.users.getUserByEmail,
-    email ? { email } : "skip"
-  );
+	const { data: user, isPending, error } = useQuery({
+		...convexQuery(api.users.getUserByEmail, { email: email! }),
+		enabled: !!email,
+	});
 
-  return user;
+	if (!email) return undefined;
+	if (isPending) return undefined;
+	if (error) {
+		console.error("Error fetching user by email:", error);
+		return undefined;
+	}
+	return user;
 }
 
 // Hook to get current user
 export function useCurrentUser(userId: Id<'users'> | null) {
-  const user = useQuery(
-    api.users.getUser,
-    userId ? { userId } : "skip"
-  );
+	const { data: user, isPending, error } = useQuery({
+		...convexQuery(api.users.getUser, { userId: userId! }),
+		enabled: !!userId,
+	});
 
-  return user;
+	if (!userId) return undefined;
+	if (isPending) return undefined;
+	if (error) {
+		console.error("Error fetching current user:", error);
+		return undefined;
+	}
+	return user;
 }
 

@@ -18,6 +18,7 @@ import { OnboardingNavigation } from '../../components/OnboardingNavigation';
 import { useScrollIndicator } from '../../components/ScrollIndicator';
 import { Theme } from '../../constants/Theme';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useOnboarding } from '../../contexts/OnboardingContext';
 
 const THEMES = [
   { id: 'light', label: 'Light' },
@@ -27,6 +28,7 @@ const THEMES = [
 export default function ProfileSetupScreen() {
   const router = useRouter();
   const { colors, isDark, setTheme, theme } = useTheme();
+  const { updateOnboardingData } = useOnboarding();
   const [name, setName] = useState('');
   const [photo, setPhoto] = useState<string | null>(null);
   const [selectedTheme, setSelectedTheme] = useState<'light' | 'dark'>(isDark ? 'dark' : 'light');
@@ -63,11 +65,18 @@ export default function ProfileSetupScreen() {
     setTheme(newTheme);
   };
 
-  const handleFinish = () => {
+  const handleFinish = async () => {
     if (!name.trim()) {
       Alert.alert('Error', 'Please enter your name');
       return;
     }
+    // Save profile data
+    await updateOnboardingData({
+      profile: {
+        name: name.trim(),
+        photo: photo,
+      },
+    });
     // El tema ya está guardado por handleThemeChange
     router.push('/(onboarding)/final');
   };

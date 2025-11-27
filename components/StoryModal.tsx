@@ -1,21 +1,39 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect } from 'react';
 import {
   View,
   Text,
-  Image,
   StyleSheet,
   Modal,
   TouchableOpacity,
   Dimensions,
   StatusBar as RNStatusBar,
-  Animated,
-  PanResponder,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useTheme } from '../contexts/ThemeContext';
-import { Theme } from '../constants/Theme';
+import { useTheme } from '@/contexts/ThemeContext';
+import { Theme } from '@/constants/Theme';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  withSpring,
+  runOnJS,
+  interpolate,
+  Extrapolation,
+  SlideInDown,
+  ZoomIn,
+  FadeOut,
+  cancelAnimation,
+  Easing,
+} from 'react-native-reanimated';
+import {
+  Gesture,
+  GestureDetector,
+  GestureHandlerRootView,
+} from 'react-native-gesture-handler';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+const STORY_DURATION = 8000;
 
 interface StoryModalProps {
   visible: boolean;
@@ -36,197 +54,234 @@ export const StoryModal: React.FC<StoryModalProps> = ({
   note,
   timestamp,
 }) => {
-  const { colors, isDark } = useTheme();
-  const [progress, setProgress] = useState(0);
-  const progressAnim = useRef(new Animated.Value(0)).current;
-  const translateY = useRef(new Animated.Value(0)).current;
-  
-  // Auto-close timer (8 seconds)
+  const { colors } = useTheme();
+
+  // Shared values
+  const progress = useSharedValue(0);
+  const translateY = useSharedValue(0);
+  const scale = useSharedValue(1);
+  const isPressed = useSharedValue(false);
+
+  // Start timer on mount
   useEffect(() => {
-    if (!visible) {
-      setProgress(0);
-      progressAnim.setValue(0);
-      return;
+    if (visible) {
+      progress.value = 0;
+      progress.value = withTiming(1, {
+        duration: STORY_DURATION,
+        easing: Easing.linear,
+      }, (finished) => {
+        if (finished) {
+          runOnJS(onClose)();
+        }
+      });
     }
-
-    const timer = Animated.timing(progressAnim, {
-      toValue: 1,
-      duration: 8000,
-      useNativeDriver: false,
-    });
-
-    timer.start(({ finished }) => {
-      if (finished) {
-        onClose();
-      }
-    });
-
-    const listener = progressAnim.addListener(({ value }) => {
-      setProgress(value);
-    });
-
     return () => {
-      timer.stop();
-      progressAnim.removeListener(listener);
+      cancelAnimation(progress);
     };
   }, [visible]);
 
-  // Swipe down to close
-  const panResponder = useRef(
-    PanResponder.create({
-      onMoveShouldSetPanResponder: (_, gestureState) => {
-        return Math.abs(gestureState.dy) > 10;
-      },
-      onPanResponderMove: (_, gestureState) => {
-        if (gestureState.dy > 0) {
-          translateY.setValue(gestureState.dy);
-        }
-      },
-      onPanResponderRelease: (_, gestureState) => {
-        if (gestureState.dy > 100) {
-          Animated.timing(translateY, {
-            toValue: SCREEN_HEIGHT,
-            duration: 200,
-            useNativeDriver: true,
-          }).start(() => {
-            onClose();
-            translateY.setValue(0);
-          });
-        } else {
-          Animated.spring(translateY, {
-            toValue: 0,
-            useNativeDriver: true,
-          }).start();
-        }
-      },
+  // Gestures
+  const panGesture = Gesture.Pan()
+    .onUpdate((e) => {
+      // Only allow dragging down
+      if (e.translationY > 0) {
+        translateY.value = e.translationY;
+        // Scale down slightly as we drag down, similar to Instagram
+        scale.value = interpolate(
+          e.translationY,
+          [0, SCREEN_HEIGHT],
+          [1, 0.8],
+          Extrapolation.CLAMP
+        );
+      }
     })
-  ).current;
+    .onEnd((e) => {
+      if (e.translationY > 100 || e.velocityY > 500) {
+        // Close if dragged far enough or fast enough
+        runOnJS(onClose)();
+      } else {
+        // Snap back
+        translateY.value = withSpring(0, { damping: 20, stiffness: 200 });
+        scale.value = withSpring(1, { damping: 20, stiffness: 200 });
+      }
+    });
+
+  const longPressGesture = Gesture.LongPress()
+    .minDuration(200)
+    .onStart(() => {
+      isPressed.value = true;
+      // Pause timer (technically we just cancel and we'd need to resume, 
+      // but for simple implementation we can just cancel or let it run. 
+      // A true pause requires tracking elapsed time. 
+      // For now, let's just do the visual "hold" effect without complex timer pause logic 
+      // unless requested, as re-starting from current progress is a bit involved with simple withTiming)
+      // Actually, let's just pause the progress bar visual if we can.
+      // cancelAnimation(progress); 
+    })
+    .onEnd(() => {
+      isPressed.value = false;
+      // Resume logic would go here
+    });
+
+  // Composed gesture
+  // We prioritize pan for swipe down, but maybe just use Pan for everything?
+  // Simpler to just use Pan for swipe down.
+  const gesture = panGesture;
+
+  const containerStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateY: translateY.value },
+      { scale: scale.value }
+    ],
+    borderRadius: interpolate(
+      translateY.value,
+      [0, 200],
+      [0, 40],
+      Extrapolation.CLAMP
+    ),
+    overflow: 'hidden',
+  }));
+
+  const progressStyle = useAnimatedStyle(() => ({
+    width: `${progress.value * 100}%`,
+  }));
+
+  const backdropStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(
+      translateY.value,
+      [0, SCREEN_HEIGHT / 2],
+      [1, 0],
+      Extrapolation.CLAMP
+    ),
+    backgroundColor: 'black',
+  }));
+
+  if (!visible) return null;
 
   return (
     <Modal
       visible={visible}
       animationType="fade"
-      transparent={false}
+      transparent={true}
       onRequestClose={onClose}
       statusBarTranslucent
     >
-      <Animated.View 
-        style={[
-          styles.container, 
-          { 
-            backgroundColor: colors.background,
-            transform: [{ translateY }],
-          }
-        ]}
-        {...panResponder.panHandlers}
-      >
-        {/* Progress Bar */}
-        <View style={styles.progressBarContainer}>
-          <View style={styles.progressBarBackground}>
-            <Animated.View 
-              style={[
-                styles.progressBar,
-                {
-                  width: progressAnim.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: ['0%', '100%'],
-                  }),
-                },
-              ]} 
-            />
-          </View>
-        </View>
-        {/* Header */}
-        <LinearGradient
-          colors={['rgba(0,0,0,0.6)', 'transparent']}
-          style={styles.header}
-        >
-          <View style={styles.headerContent}>
-            <View style={styles.userInfo}>
-              {userPhoto ? (
-                <Image source={{ uri: userPhoto }} style={styles.userAvatar} />
-              ) : (
-                <View style={[styles.userAvatarPlaceholder, { backgroundColor: colors.primary }]}>
-                  <Text style={styles.userAvatarText}>
-                    {userName.charAt(0).toUpperCase()}
-                  </Text>
-                </View>
-              )}
-              <View style={styles.userDetails}>
-                <Text style={styles.userName}>{userName}</Text>
-                <Text style={styles.timestamp}>
-                  {timestamp.toLocaleTimeString([], {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })}
-                </Text>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <Animated.View style={[styles.backdrop, backdropStyle]} />
+        
+        <GestureDetector gesture={gesture}>
+          <Animated.View 
+            style={[styles.container, containerStyle]}
+            entering={SlideInDown.duration(250)}
+            exiting={FadeOut}
+          >
+            {/* Progress Bar */}
+            <View style={styles.progressContainer}>
+              <View style={styles.progressBarBg}>
+                <Animated.View style={[styles.progressBarFill, progressStyle]} />
               </View>
             </View>
-            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-              <Text style={styles.closeButtonText}>✕</Text>
-            </TouchableOpacity>
-          </View>
-        </LinearGradient>
 
-        {/* Photo */}
-        {photo && (
-          <View style={styles.photoContainer}>
-            <Image
-              source={{ uri: photo }}
-              style={styles.photo}
-              resizeMode="cover"
-            />
-          </View>
-        )}
+            {/* Header */}
+            <LinearGradient
+              colors={['rgba(0,0,0,0.6)', 'transparent']}
+              style={styles.header}
+              pointerEvents="box-none"
+            >
+              <View style={styles.headerContent}>
+                <View style={styles.userInfo}>
+                  {userPhoto ? (
+                    <Image source={{ uri: userPhoto }} style={styles.userAvatar} />
+                  ) : (
+                    <View style={[styles.userAvatarPlaceholder, { backgroundColor: colors.primary }]}>
+                      <Text style={styles.userAvatarText}>
+                        {userName.charAt(0).toUpperCase()}
+                      </Text>
+                    </View>
+                  )}
+                  <View style={styles.userDetails}>
+                    <Text style={styles.userName}>{userName}</Text>
+                    <Text style={styles.timestamp}>
+                      {timestamp.toLocaleTimeString([], {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </Text>
+                  </View>
+                </View>
+                <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+                  <Text style={styles.closeButtonText}>✕</Text>
+                </TouchableOpacity>
+              </View>
+            </LinearGradient>
 
-        {/* Note */}
-        {note && (
-          <LinearGradient
-            colors={['transparent', 'rgba(0,0,0,0.7)']}
-            style={styles.noteContainer}
-          >
-            <View style={styles.noteContent}>
-              <Text style={styles.noteLabel}>Note:</Text>
-              <Text style={styles.noteText}>{note}</Text>
-            </View>
-          </LinearGradient>
-        )}
-      </Animated.View>
+            {/* Photo */}
+            {photo && (
+              <View style={styles.photoContainer}>
+                <Image
+                  source={{ uri: photo }}
+                  style={styles.photo}
+                  contentFit="cover"
+                  transition={200}
+                />
+              </View>
+            )}
+
+            {/* Note */}
+            {note && (
+              <LinearGradient
+                colors={['transparent', 'rgba(0,0,0,0.8)']}
+                style={styles.noteContainer}
+                pointerEvents="none"
+              >
+                <View style={styles.noteContent}>
+                  <Text style={styles.noteText}>{note}</Text>
+                </View>
+              </LinearGradient>
+            )}
+          </Animated.View>
+        </GestureDetector>
+      </GestureHandlerRootView>
     </Modal>
   );
 };
 
 const styles = StyleSheet.create({
+  backdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'black',
+  },
   container: {
     flex: 1,
+    backgroundColor: 'black',
   },
-  progressBarContainer: {
+  progressContainer: {
     position: 'absolute',
-    top: 50,
-    left: 8,
-    right: 8,
-    zIndex: 20,
+    top: 70, // Below status bar
+    left: 10,
+    right: 10,
+    zIndex: 30,
   },
-  progressBarBackground: {
-    height: 3,
+  progressBarBg: {
+    height: 2, // Slimmer
     backgroundColor: 'rgba(255,255,255,0.3)',
-    borderRadius: 1.5,
+    borderRadius: 1,
     overflow: 'hidden',
   },
-  progressBar: {
+  progressBarFill: {
     height: '100%',
     backgroundColor: '#FFFFFF',
-    borderRadius: 1.5,
+    borderRadius: 1,
   },
   header: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
-    zIndex: 10,
-    paddingTop: 60,
+    zIndex: 20,
+    paddingTop: 85,
     paddingHorizontal: 16,
-    paddingBottom: 16,
+    paddingBottom: 20,
   },
   headerContent: {
     flexDirection: 'row',
@@ -236,27 +291,27 @@ const styles = StyleSheet.create({
   userInfo: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 10,
   },
   userAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    borderWidth: 2,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    borderWidth: 1.5,
     borderColor: '#FFFFFF',
   },
   userAvatarPlaceholder: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    borderWidth: 2,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    borderWidth: 1.5,
     borderColor: '#FFFFFF',
     justifyContent: 'center',
     alignItems: 'center',
   },
   userAvatarText: {
     color: '#FFFFFF',
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: Theme.typography.fontWeight.bold,
   },
   userDetails: {
@@ -264,25 +319,33 @@ const styles = StyleSheet.create({
   },
   userName: {
     color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: Theme.typography.fontWeight.semibold,
+    fontSize: 15,
+    fontWeight: Theme.typography.fontWeight.bold,
+    textShadowColor: 'rgba(0,0,0,0.3)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
   timestamp: {
-    color: '#FFFFFF',
+    color: 'rgba(255,255,255,0.8)',
     fontSize: 12,
-    opacity: 0.8,
+    fontWeight: Theme.typography.fontWeight.medium,
+    textShadowColor: 'rgba(0,0,0,0.3)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
   closeButton: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: 'rgba(0,0,0,0.2)',
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
   },
   closeButtonText: {
     color: '#FFFFFF',
-    fontSize: 20,
+    fontSize: 16,
     fontWeight: Theme.typography.fontWeight.bold,
   },
   photoContainer: {
@@ -291,8 +354,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   photo: {
-    width: SCREEN_WIDTH,
-    height: SCREEN_HEIGHT,
+    width: '100%',
+    height: '100%',
   },
   noteContainer: {
     position: 'absolute',
@@ -300,21 +363,19 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     paddingHorizontal: 20,
-    paddingTop: 40,
-    paddingBottom: 40,
+    paddingBottom: 50,
+    paddingTop: 60,
   },
   noteContent: {
-    gap: 8,
-  },
-  noteLabel: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: Theme.typography.fontWeight.semibold,
-    opacity: 0.8,
+    gap: 6,
   },
   noteText: {
     color: '#FFFFFF',
-    fontSize: 16,
-    lineHeight: 22,
+    fontSize: 18,
+    lineHeight: 26,
+    fontWeight: Theme.typography.fontWeight.medium,
+    textShadowColor: 'rgba(0,0,0,0.5)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
   },
 });

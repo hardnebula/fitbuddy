@@ -15,6 +15,7 @@ import { OnboardingNavigation } from '../../components/OnboardingNavigation';
 import { ScrollIndicator, useScrollIndicator } from '../../components/ScrollIndicator';
 import { Theme } from '../../constants/Theme';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useOnboarding } from '../../contexts/OnboardingContext';
 
 const TIMES = [
   '🌅 Mornings',
@@ -26,11 +27,13 @@ const TIMES = [
 export default function TrainingTimeScreen() {
   const router = useRouter();
   const { colors, isDark } = useTheme();
+  const { updateOnboardingData } = useOnboarding();
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const { scrollPosition, contentHeight, viewHeight, handleScroll, handleContentSizeChange, handleLayout } = useScrollIndicator();
 
-  const handleContinue = () => {
+  const handleContinue = async () => {
     if (selectedTime) {
+      await updateOnboardingData({ trainingTime: selectedTime });
       router.push('/(onboarding)/profile-setup');
     }
   };

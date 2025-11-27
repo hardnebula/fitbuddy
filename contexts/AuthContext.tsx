@@ -2,6 +2,8 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Id } from '../convex/_generated/dataModel';
 import { useAuth, useCurrentUser } from '../lib/auth';
+import { getUnsyncedCheckIns, markCheckInsAsSynced } from '../lib/localCheckIns';
+import { useCheckIns } from '../lib/checkIns';
 
 interface AuthContextType {
   userId: Id<'users'> | null;
@@ -20,6 +22,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const { login: loginMutation } = useAuth();
   const user = useCurrentUser(userId);
+  const { createCheckIn } = useCheckIns();
 
   // Load stored user ID on mount
   useEffect(() => {
@@ -44,9 +47,44 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const newUserId = await loginMutation(email, name, avatar);
       await AsyncStorage.setItem(USER_ID_KEY, newUserId);
       setUserId(newUserId);
+      
+      // Sync local check-ins to server
+      await syncLocalCheckIns(newUserId);
     } catch (error) {
       console.error('Login error:', error);
       throw error;
+    }
+  };
+  
+  const syncLocalCheckIns = async (syncedUserId: Id<'users'>) => {
+    try {
+      const unsyncedCheckIns = await getUnsyncedCheckIns();
+      if (unsyncedCheckIns.length === 0) return;
+      
+      // Sync each local check-in to server
+      const syncedIds: string[] = [];
+      for (const localCheckIn of unsyncedCheckIns) {
+        try {
+          await createCheckIn({
+            userId: syncedUserId,
+            groupId: localCheckIn.groupId || undefined,
+            note: localCheckIn.note || undefined,
+            photo: localCheckIn.photo || undefined,
+          });
+          syncedIds.push(localCheckIn.id);
+        } catch (error) {
+          console.error('Error syncing check-in:', error);
+          // Continue with other check-ins even if one fails
+        }
+      }
+      
+      // Mark synced check-ins
+      if (syncedIds.length > 0) {
+        await markCheckInsAsSynced(syncedIds);
+      }
+    } catch (error) {
+      console.error('Error syncing local check-ins:', error);
+      // Don't throw - login should succeed even if sync fails
     }
   };
 

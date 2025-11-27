@@ -15,6 +15,7 @@ import { OnboardingNavigation } from '../../components/OnboardingNavigation';
 import { ScrollIndicator, useScrollIndicator } from '../../components/ScrollIndicator';
 import { Theme } from '../../constants/Theme';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useOnboarding } from '../../contexts/OnboardingContext';
 
 const CIRCLES = [
   '👥 Friends',
@@ -28,11 +29,13 @@ const CIRCLES = [
 export default function AccountabilityScreen() {
   const router = useRouter();
   const { colors, isDark } = useTheme();
+  const { updateOnboardingData } = useOnboarding();
   const [selectedCircle, setSelectedCircle] = useState<string | null>(null);
   const { scrollPosition, contentHeight, viewHeight, handleScroll, handleContentSizeChange, handleLayout } = useScrollIndicator();
 
-  const handleContinue = () => {
+  const handleContinue = async () => {
     if (selectedCircle) {
+      await updateOnboardingData({ accountability: selectedCircle });
       router.push('/(onboarding)/personality');
     }
   };

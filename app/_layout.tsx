@@ -1,8 +1,11 @@
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { View } from "react-native";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { ConvexProvider, ConvexReactClient } from "convex/react";
 import { ConvexBetterAuthProvider } from "@convex-dev/better-auth/react";
+import { ConvexQueryClient } from "@convex-dev/react-query";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { authClient } from "../lib/auth-client";
 import { AuthProvider } from "../contexts/AuthContext";
 import { ThemeProvider, useTheme } from "../contexts/ThemeContext";
@@ -31,6 +34,18 @@ const convex = new ConvexReactClient(getConvexUrl(), {
 	expectAuth: false, // Auth is optional, not required
 	unsavedChangesWarning: false,
 });
+
+// Create ConvexQueryClient and connect it to TanStack Query
+const convexQueryClient = new ConvexQueryClient(convex);
+const queryClient = new QueryClient({
+	defaultOptions: {
+		queries: {
+			queryKeyHashFn: convexQueryClient.hashFn(),
+			queryFn: convexQueryClient.queryFn(),
+		},
+	},
+});
+convexQueryClient.connect(queryClient);
 
 function RootNavigator() {
 	const { colors, isDark } = useTheme();
@@ -86,14 +101,18 @@ function RootNavigator() {
 
 export default function RootLayout() {
 	return (
-		<ConvexProvider client={convex}>
-			<ConvexBetterAuthProvider client={convex} authClient={authClient}>
-				<ThemeProvider>
-					<AuthProvider>
-						<RootNavigator />
-					</AuthProvider>
-				</ThemeProvider>
-			</ConvexBetterAuthProvider>
-		</ConvexProvider>
+		<GestureHandlerRootView style={{ flex: 1 }}>
+			<ConvexProvider client={convex}>
+				<QueryClientProvider client={queryClient}>
+					<ConvexBetterAuthProvider client={convex} authClient={authClient}>
+						<ThemeProvider>
+							<AuthProvider>
+								<RootNavigator />
+							</AuthProvider>
+						</ThemeProvider>
+					</ConvexBetterAuthProvider>
+				</QueryClientProvider>
+			</ConvexProvider>
+		</GestureHandlerRootView>
 	);
 }

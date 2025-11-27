@@ -18,6 +18,7 @@ import {
 } from "../../components/ScrollIndicator";
 import { Theme } from "../../constants/Theme";
 import { useTheme } from "../../contexts/ThemeContext";
+import { useOnboarding } from "../../contexts/OnboardingContext";
 
 const GOALS = [
 	"🎯 Stay consistent",
@@ -31,6 +32,7 @@ const GOALS = [
 export default function GoalScreen() {
 	const router = useRouter();
 	const { colors, isDark } = useTheme();
+	const { updateOnboardingData } = useOnboarding();
 	const [selectedGoal, setSelectedGoal] = useState<string | null>(null);
 	const {
 		scrollPosition,
@@ -41,8 +43,9 @@ export default function GoalScreen() {
 		handleLayout,
 	} = useScrollIndicator();
 
-	const handleContinue = () => {
+	const handleContinue = async () => {
 		if (selectedGoal) {
+			await updateOnboardingData({ goal: selectedGoal });
 			router.push("/(onboarding)/activity-style");
 		}
 	};

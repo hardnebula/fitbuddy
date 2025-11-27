@@ -113,12 +113,17 @@ export default function ProfileScreen() {
 
   return (
     <ScreenTransition>
-    <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
+      <SafeAreaView 
+        style={[styles.container, { backgroundColor: colors.background }]}
+        edges={['top']}
+      >
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        bounces={false}
+        scrollEnabled={true}
       >
         {/* Header with Theme Toggle */}
         <View style={styles.headerContainer}>
@@ -307,8 +312,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    padding: Theme.spacing.lg,
-    paddingBottom: Theme.spacing.xxl,
+    paddingHorizontal: Theme.spacing.lg,
+    paddingTop: Theme.spacing.lg,
+    paddingBottom: Theme.spacing.sm,
   },
   title: {
     fontSize: 28,

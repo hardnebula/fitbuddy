@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, StyleSheet, StatusBar, Image } from "react-native";
+import { View, Text, StyleSheet, StatusBar, Image, TouchableOpacity } from "react-native";
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Button } from "../../components/Button";
@@ -12,6 +12,10 @@ export default function WelcomeScreen() {
 
 	const handleGetStarted = () => {
 		router.replace("/(onboarding)/goal");
+	};
+
+	const handleSignIn = () => {
+		router.push("/(auth)/sign-in");
 	};
 
 	return (
@@ -44,14 +48,24 @@ export default function WelcomeScreen() {
 					{/* Spacer */}
 					<View style={styles.spacer} />
 
-					{/* Button */}
+					{/* Buttons */}
 					<View style={styles.buttonContainer}>
+						<Button
+							title="Sign In"
+							onPress={handleSignIn}
+							fullWidth
+							size="large"
+							variant="outline"
+						/>
 						<Button
 							title="Get Started →"
 							onPress={handleGetStarted}
 							fullWidth
 							size="large"
 						/>
+						<Text style={[styles.hintText, { color: colors.textTertiary }]}>
+							New users must complete onboarding first
+						</Text>
 					</View>
 				</View>
 			</SafeAreaView>
@@ -97,5 +111,11 @@ const styles = StyleSheet.create({
 	},
 	buttonContainer: {
 		paddingBottom: Theme.spacing.lg,
+		gap: Theme.spacing.md,
+	},
+	hintText: {
+		fontSize: 14,
+		textAlign: "center",
+		marginTop: Theme.spacing.sm,
 	},
 });
