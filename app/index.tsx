@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { useRouter } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 import { View, StyleSheet } from 'react-native';
 import { LoadingSpinner } from '../components';
 import { Theme } from '../constants/Theme';
@@ -16,9 +16,17 @@ export default function Index() {
   }, []);
 
   return (
-    <View style={styles.container}>
-      <LoadingSpinner />
-    </View>
+    <>
+      <Stack.Screen
+        options={{
+          headerShown: false,
+          animation: 'none',
+        }}
+      />
+      <View style={styles.container}>
+        <LoadingSpinner />
+      </View>
+    </>
   );
 }
 
