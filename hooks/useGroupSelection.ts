@@ -1,5 +1,6 @@
-import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useFocusEffect } from 'expo-router';
 import { Id } from '@/convex/_generated/dataModel';
 
 const SELECTED_GROUP_KEY = 'fitbuddy_selected_group_id';
@@ -9,6 +10,7 @@ interface UseGroupSelectionReturn {
   setSelectedGroupId: (id: Id<'groups'> | null) => void;
   selectedGroup: any | null;
   isLoading: boolean;
+  refreshSelection: () => Promise<void>;
 }
 
 export function useGroupSelection(
@@ -19,25 +21,48 @@ export function useGroupSelection(
   );
   const [isLoading, setIsLoading] = useState(true);
   const [hasLoadedFromStorage, setHasLoadedFromStorage] = useState(false);
+  const previousGroupsLength = useRef<number | undefined>(undefined);
 
-  // Load saved group ID from AsyncStorage on mount
-  useEffect(() => {
-    const loadSavedGroupId = async () => {
-      try {
-        const savedGroupId = await AsyncStorage.getItem(SELECTED_GROUP_KEY);
-        if (savedGroupId) {
-          setSelectedGroupId(savedGroupId as Id<'groups'>);
-        }
-      } catch (error) {
-        console.error('Error loading saved group ID:', error);
-      } finally {
-        setIsLoading(false);
-        setHasLoadedFromStorage(true);
+  // Function to load saved group ID from AsyncStorage
+  const loadSavedGroupId = useCallback(async () => {
+    try {
+      const savedGroupId = await AsyncStorage.getItem(SELECTED_GROUP_KEY);
+      if (savedGroupId) {
+        setSelectedGroupId(savedGroupId as Id<'groups'>);
       }
-    };
-
-    loadSavedGroupId();
+    } catch (error) {
+      console.error('Error loading saved group ID:', error);
+    } finally {
+      setIsLoading(false);
+      setHasLoadedFromStorage(true);
+    }
   }, []);
+
+  // Load on mount
+  useEffect(() => {
+    loadSavedGroupId();
+  }, [loadSavedGroupId]);
+
+  // Reload when screen gains focus (handles navigation from create/join group)
+  useFocusEffect(
+    useCallback(() => {
+      // Reload from AsyncStorage when screen gains focus
+      loadSavedGroupId();
+    }, [loadSavedGroupId])
+  );
+
+  // Also reload when groups array changes (new group added)
+  useEffect(() => {
+    if (groups !== undefined) {
+      const currentLength = groups.length;
+      if (previousGroupsLength.current !== undefined && 
+          currentLength > previousGroupsLength.current) {
+        // A new group was added, reload the selection
+        loadSavedGroupId();
+      }
+      previousGroupsLength.current = currentLength;
+    }
+  }, [groups, loadSavedGroupId]);
 
   // Compute the selected group based on available groups
   const selectedGroup = useMemo(() => {
@@ -79,5 +104,6 @@ export function useGroupSelection(
     setSelectedGroupId: setSelectedGroupIdWithPersistence,
     selectedGroup,
     isLoading,
+    refreshSelection: loadSavedGroupId,
   };
 }

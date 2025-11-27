@@ -332,8 +332,8 @@ export default function HomeScreen() {
 					style={styles.scrollView}
 					contentContainerStyle={styles.scrollContent}
 					showsVerticalScrollIndicator={false}
-					bounces={false}
-					scrollEnabled={true}
+					bounces={true}
+					contentInsetAdjustmentBehavior="automatic"
 				>
 					{/* Streak Hero - Always at the top */}
 					<StreakHero
@@ -442,8 +442,9 @@ const styles = StyleSheet.create({
 	},
 	scrollContent: {
 		paddingHorizontal: Theme.spacing.lg,
-		paddingTop: Theme.spacing.lg,
-		paddingBottom: Theme.spacing.sm,
+		paddingTop: Theme.spacing.md,
+		paddingBottom: Theme.spacing.xl,
+		flexGrow: 1,
 	},
 	loadingContainer: {
 		flex: 1,

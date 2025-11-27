@@ -390,7 +390,7 @@ const styles = StyleSheet.create({
 		marginBottom: Theme.spacing.md,
 		position: "relative",
 		zIndex: 1,
-		width: 400,
+		width: "100%",
 		height: 100,
 		justifyContent: "center",
 		alignItems: "center",

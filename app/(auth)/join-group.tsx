@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useCallback, useMemo } from "react";
 import {
 	View,
 	Text,
@@ -9,22 +9,35 @@ import {
 	TouchableOpacity,
 	Alert,
 	StatusBar,
+	ActivityIndicator,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Svg, { Path } from "react-native-svg";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as Haptics from "expo-haptics";
+import { LinearGradient } from "expo-linear-gradient";
 import { Button } from "../../components/Button";
 import { Input } from "../../components/Input";
-import { Card } from "../../components/Card";
 import { Logo } from "../../components/Logo";
 import { useScrollIndicator } from "../../components/ScrollIndicator";
+import { ScreenTransition } from "../../components/ScreenTransition";
+import SquircleView from "../../components/SquircleView";
 import { Theme } from "../../constants/Theme";
 import { useTheme } from "../../contexts/ThemeContext";
+import { useAuthContext } from "../../contexts/AuthContext";
+import { useGroups, useGroupByInviteCode } from "../../lib/groups";
+
+const SELECTED_GROUP_KEY = "fitbuddy_selected_group_id";
 
 export default function JoinGroupScreen() {
 	const router = useRouter();
 	const { colors, isDark } = useTheme();
+	const { userId } = useAuthContext();
+	const { joinGroupMutation } = useGroups();
+
 	const [inviteCode, setInviteCode] = useState("");
+	const [isJoining, setIsJoining] = useState(false);
 	const {
 		contentHeight,
 		viewHeight,
@@ -33,25 +46,66 @@ export default function JoinGroupScreen() {
 		handleLayout,
 	} = useScrollIndicator();
 
-	const handleJoinGroup = () => {
+	// Query for group preview when invite code is entered
+	const normalizedCode = useMemo(() => {
+		const trimmed = inviteCode.trim().toUpperCase();
+		// Only query if it looks like a valid invite code (FITBUDDY-XXXXXX format)
+		return trimmed.length >= 8 ? trimmed : null;
+	}, [inviteCode]);
+
+	const groupPreview = useGroupByInviteCode(normalizedCode);
+
+	const handleJoinGroup = useCallback(async () => {
 		if (!inviteCode.trim()) {
 			Alert.alert("Error", "Please enter an invite code");
 			return;
 		}
-		// In a real app, validate the code with backend
-		// For now, navigate to main app
-		router.replace("/(tabs)/home");
-	};
 
-	// Mock group preview data
-	const groupPreview = {
-		name: "Morning Runners",
-		members: 3,
-		streak: 8,
-	};
+		if (!userId) {
+			Alert.alert("Sign In Required", "Please sign in to join a group", [
+				{ text: "Cancel", style: "cancel" },
+				{ text: "Sign In", onPress: () => router.push("/(auth)/sign-in") },
+			]);
+			return;
+		}
+
+		if (isJoining) return; // Prevent double submission
+
+		setIsJoining(true);
+		try {
+			const groupId = await joinGroupMutation.mutateAsync({
+				inviteCode: inviteCode.trim().toUpperCase(),
+				userId,
+			});
+
+			// Set the joined group as the selected group
+			await AsyncStorage.setItem(SELECTED_GROUP_KEY, groupId);
+
+			Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+			// Navigate to home with the new group selected
+			router.replace("/(tabs)/home");
+		} catch (error: any) {
+			console.error("Error joining group:", error);
+			Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+
+			let errorMessage = "Failed to join group. Please try again.";
+			if (error.message?.includes("not found")) {
+				errorMessage = "Invalid invite code. Please check and try again.";
+			} else if (error.message?.includes("full")) {
+				errorMessage = "This group is full (max 4 members).";
+			} else if (error.message?.includes("archived")) {
+				errorMessage = "This group has been archived.";
+			}
+
+			Alert.alert("Error", errorMessage);
+		} finally {
+			setIsJoining(false);
+		}
+	}, [inviteCode, userId, isJoining, joinGroupMutation, router]);
 
 	return (
-		<>
+		<ScreenTransition>
 			<StatusBar barStyle={isDark ? "light-content" : "dark-content"} />
 			<SafeAreaView
 				style={[styles.container, { backgroundColor: colors.background }]}
@@ -70,37 +124,44 @@ export default function JoinGroupScreen() {
 							onContentSizeChange={handleContentSizeChange}
 							scrollEventThrottle={16}
 							scrollEnabled={contentHeight > viewHeight + 5 && viewHeight > 0}
-							bounces={contentHeight > viewHeight + 5 && viewHeight > 0}
+							bounces={true}
 							alwaysBounceVertical={false}
 							nestedScrollEnabled={false}
 						>
 							<View style={styles.content}>
 								{/* Header */}
-								<TouchableOpacity
-									onPress={() => router.back()}
-									style={styles.backButton}
-								>
-									<Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
-										<Path
-											d="M15 18l-6-6 6-6"
-											stroke={colors.text}
-											strokeWidth={2}
-											strokeLinecap="round"
-											strokeLinejoin="round"
-										/>
-									</Svg>
-								</TouchableOpacity>
-
-								<View style={styles.header}>
-									<Logo size={80} style={styles.logo} />
-									<Text style={[styles.title, { color: colors.text }]}>
-										Join Group
-									</Text>
-									<Text
-										style={[styles.subtitle, { color: colors.textSecondary }]}
+								<View style={styles.headerContainer}>
+									<TouchableOpacity
+										onPress={() => router.back()}
+										style={[
+											styles.backButton,
+											{ backgroundColor: colors.cardSecondary },
+										]}
 									>
-										Enter your invite code to join a group
-									</Text>
+										<Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
+											<Path
+												d="M15 18l-6-6 6-6"
+												stroke={colors.text}
+												strokeWidth={2}
+												strokeLinecap="round"
+												strokeLinejoin="round"
+											/>
+										</Svg>
+									</TouchableOpacity>
+									<View style={styles.headerTextContainer}>
+										<Text style={[styles.title, { color: colors.text }]}>
+											Join Group
+										</Text>
+										<Text
+											style={[styles.subtitle, { color: colors.textSecondary }]}
+										>
+											Enter invite code to join
+										</Text>
+									</View>
+								</View>
+
+								<View style={styles.heroImageContainer}>
+									<Logo size={120} style={styles.logo} />
 								</View>
 
 								{/* Invite Code Section */}
@@ -128,82 +189,193 @@ export default function JoinGroupScreen() {
 								</View>
 
 								{/* Group Preview */}
-								{inviteCode.length > 0 && (
+								{normalizedCode && (
 									<View style={styles.section}>
-										<Card
-											style={StyleSheet.flatten([
-												styles.previewCard,
-												{ backgroundColor: colors.card },
-											])}
-											glow
-										>
-											<Text
+										{groupPreview === undefined ? (
+											<SquircleView
 												style={[
-													styles.previewTitle,
-													{ color: colors.text },
+													styles.previewCard,
+													{
+														backgroundColor: colors.cardSecondary,
+														borderColor: colors.border,
+													},
 												]}
+												cornerSmoothing={1}
 											>
-												Group Preview
-											</Text>
-											<View style={styles.previewContent}>
-												<Text
-													style={[
-														styles.groupName,
-														{ color: colors.text },
-													]}
+												<View style={styles.loadingContainer}>
+													<ActivityIndicator
+														size="small"
+														color={colors.primary}
+													/>
+													<Text
+														style={[
+															styles.loadingText,
+															{ color: colors.textSecondary },
+														]}
+													>
+														Looking for group...
+													</Text>
+												</View>
+											</SquircleView>
+										) : groupPreview ? (
+											<SquircleView
+												style={[
+													styles.previewCard,
+													{
+														backgroundColor: colors.card,
+														borderColor: colors.primary,
+														borderWidth: 2,
+													},
+												]}
+												cornerSmoothing={1}
+											>
+												<LinearGradient
+													colors={
+														isDark
+															? [
+																	"rgba(139, 92, 246, 0.15)",
+																	"rgba(139, 92, 246, 0.05)",
+																]
+															: [
+																	"rgba(139, 92, 246, 0.1)",
+																	"rgba(139, 92, 246, 0.02)",
+																]
+													}
+													start={{ x: 0, y: 0 }}
+													end={{ x: 1, y: 1 }}
+													style={styles.gradientBackground}
 												>
-													{groupPreview.name}
-												</Text>
-												<View style={styles.previewRow}>
-													<Text
+													<View style={styles.previewHeader}>
+														<View
+															style={[
+																styles.successIcon,
+																{ backgroundColor: colors.primary },
+															]}
+														>
+															<Svg
+																width={16}
+																height={16}
+																viewBox="0 0 24 24"
+																fill="none"
+															>
+																<Path
+																	d="M20 6L9 17l-5-5"
+																	stroke="#FFFFFF"
+																	strokeWidth={3}
+																	strokeLinecap="round"
+																	strokeLinejoin="round"
+																/>
+															</Svg>
+														</View>
+														<Text
+															style={[
+																styles.previewTitle,
+																{ color: colors.text },
+															]}
+														>
+															Group Found!
+														</Text>
+													</View>
+
+													<View style={styles.previewContent}>
+														<Text
+															style={[styles.groupName, { color: colors.text }]}
+														>
+															{groupPreview.name}
+														</Text>
+														<View style={styles.statsContainer}>
+															<View
+																style={[
+																	styles.statBadge,
+																	{
+																		backgroundColor: colors.primary + "15",
+																	},
+																]}
+															>
+																<Text
+																	style={[
+																		styles.statText,
+																		{ color: colors.primary },
+																	]}
+																>
+																	🔥 {groupPreview.groupStreak} Days Streak
+																</Text>
+															</View>
+														</View>
+													</View>
+												</LinearGradient>
+											</SquircleView>
+										) : (
+											<SquircleView
+												style={[
+													styles.previewCard,
+													{
+														backgroundColor: colors.card,
+														borderColor: colors.error + "50",
+														borderWidth: 1,
+													},
+												]}
+												cornerSmoothing={1}
+											>
+												<View style={styles.errorContainer}>
+													<View
 														style={[
-															styles.previewLabel,
-															{ color: colors.textSecondary },
+															styles.errorIcon,
+															{ backgroundColor: colors.error + "20" },
 														]}
 													>
-														Members:
-													</Text>
-													<Text
-														style={[
-															styles.previewValue,
-															{ color: colors.text },
-														]}
-													>
-														{groupPreview.members}
-													</Text>
+														<Svg
+															width={24}
+															height={24}
+															viewBox="0 0 24 24"
+															fill="none"
+														>
+															<Path
+																d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+																stroke={colors.error}
+																strokeWidth={2}
+																strokeLinecap="round"
+																strokeLinejoin="round"
+															/>
+														</Svg>
+													</View>
+													<View style={styles.errorTextContainer}>
+														<Text
+															style={[
+																styles.errorTitle,
+																{ color: colors.error },
+															]}
+														>
+															Group Not Found
+														</Text>
+														<Text
+															style={[
+																styles.errorDescription,
+																{ color: colors.textSecondary },
+															]}
+														>
+															Please check the invite code and try again.
+														</Text>
+													</View>
 												</View>
-												<View style={styles.previewRow}>
-													<Text
-														style={[
-															styles.previewLabel,
-															{ color: colors.textSecondary },
-														]}
-													>
-														Group Streak:
-													</Text>
-													<Text
-														style={[
-															styles.previewValue,
-															styles.streak,
-															{ color: colors.primary },
-														]}
-													>
-														{groupPreview.streak} days 🔥
-													</Text>
-												</View>
-											</View>
-										</Card>
+											</SquircleView>
+										)}
 									</View>
 								)}
 
 								{/* Join Button */}
 								<View style={styles.joinButtonContainer}>
 									<Button
-										title="Join Group"
+										title={isJoining ? "Joining Group..." : "Join Group"}
 										onPress={handleJoinGroup}
 										fullWidth
 										size="large"
-										disabled={!inviteCode.trim()}
+										loading={isJoining}
+										disabled={
+											!inviteCode.trim() ||
+											isJoining ||
+											(normalizedCode !== null && groupPreview === null)
+										}
 									/>
 								</View>
 							</View>
@@ -211,7 +383,7 @@ export default function JoinGroupScreen() {
 					</View>
 				</KeyboardAvoidingView>
 			</SafeAreaView>
-		</>
+		</ScreenTransition>
 	);
 }
 
@@ -227,20 +399,29 @@ const styles = StyleSheet.create({
 	},
 	scrollContent: {
 		flexGrow: 1,
-		paddingBottom: Theme.spacing.md,
+		paddingBottom: Theme.spacing.xxl,
 	},
 	content: {
-		paddingHorizontal: Theme.spacing.xl,
+		paddingHorizontal: Theme.spacing.lg,
 		paddingTop: Theme.spacing.md,
 	},
-	backButton: {
-		width: 40,
-		height: 40,
-		justifyContent: "center",
-		alignItems: "flex-start",
-		marginBottom: Theme.spacing.lg,
+	headerContainer: {
+		flexDirection: "row",
+		alignItems: "center",
+		marginBottom: Theme.spacing.xl,
 	},
-	header: {
+	backButton: {
+		width: 44,
+		height: 44,
+		borderRadius: 22,
+		justifyContent: "center",
+		alignItems: "center",
+		marginRight: Theme.spacing.md,
+	},
+	headerTextContainer: {
+		flex: 1,
+	},
+	heroImageContainer: {
 		alignItems: "center",
 		marginBottom: Theme.spacing.xl,
 	},
@@ -248,16 +429,12 @@ const styles = StyleSheet.create({
 		marginBottom: Theme.spacing.md,
 	},
 	title: {
-		fontSize: Theme.typography.fontSize["3xl"],
+		fontSize: Theme.typography.fontSize["2xl"],
 		fontWeight: Theme.typography.fontWeight.bold,
-		marginBottom: Theme.spacing.xs,
-		textAlign: "center",
+		marginBottom: 2,
 	},
 	subtitle: {
-		fontSize: Theme.typography.fontSize.base,
-		textAlign: "center",
-		lineHeight:
-			Theme.typography.lineHeight.relaxed * Theme.typography.fontSize.base,
+		fontSize: Theme.typography.fontSize.sm,
 	},
 	section: {
 		marginBottom: Theme.spacing.lg,
@@ -267,37 +444,87 @@ const styles = StyleSheet.create({
 	},
 	previewCard: {
 		marginTop: Theme.spacing.sm,
+		borderRadius: Theme.borderRadius.xl,
+		overflow: "hidden",
+		borderWidth: 1,
+	},
+	gradientBackground: {
+		padding: Theme.spacing.lg,
+	},
+	previewHeader: {
+		flexDirection: "row",
+		alignItems: "center",
+		marginBottom: Theme.spacing.md,
+		gap: Theme.spacing.sm,
+	},
+	successIcon: {
+		width: 24,
+		height: 24,
+		borderRadius: 12,
+		justifyContent: "center",
+		alignItems: "center",
 	},
 	previewTitle: {
 		fontSize: Theme.typography.fontSize.md,
 		fontWeight: Theme.typography.fontWeight.bold,
-		marginBottom: Theme.spacing.md,
 	},
 	previewContent: {
 		gap: Theme.spacing.sm,
 	},
 	groupName: {
-		fontSize: Theme.typography.fontSize.lg,
+		fontSize: Theme.typography.fontSize.xl,
 		fontWeight: Theme.typography.fontWeight.bold,
-		marginBottom: Theme.spacing.sm,
+		marginBottom: Theme.spacing.xs,
 	},
-	previewRow: {
+	statsContainer: {
 		flexDirection: "row",
-		justifyContent: "space-between",
+	},
+	statBadge: {
+		paddingHorizontal: Theme.spacing.md,
+		paddingVertical: Theme.spacing.xs,
+		borderRadius: Theme.borderRadius.full,
+	},
+	statText: {
+		fontWeight: Theme.typography.fontWeight.bold,
+		fontSize: Theme.typography.fontSize.sm,
+	},
+	loadingContainer: {
+		flexDirection: "row",
+		alignItems: "center",
+		justifyContent: "center",
+		gap: Theme.spacing.sm,
+		padding: Theme.spacing.xl,
+	},
+	loadingText: {
+		fontSize: Theme.typography.fontSize.base,
+		fontWeight: Theme.typography.fontWeight.medium,
+	},
+	errorContainer: {
+		flexDirection: "row",
+		alignItems: "center",
+		padding: Theme.spacing.lg,
+		gap: Theme.spacing.md,
+	},
+	errorIcon: {
+		width: 40,
+		height: 40,
+		borderRadius: 20,
+		justifyContent: "center",
 		alignItems: "center",
 	},
-	previewLabel: {
-		fontSize: Theme.typography.fontSize.base,
+	errorTextContainer: {
+		flex: 1,
 	},
-	previewValue: {
-		fontSize: Theme.typography.fontSize.base,
-		fontWeight: Theme.typography.fontWeight.semibold,
-	},
-	streak: {
+	errorTitle: {
+		fontSize: Theme.typography.fontSize.md,
 		fontWeight: Theme.typography.fontWeight.bold,
+		marginBottom: 2,
+	},
+	errorDescription: {
+		fontSize: Theme.typography.fontSize.sm,
 	},
 	joinButtonContainer: {
-		marginTop: Theme.spacing.sm,
-		marginBottom: Theme.spacing.md,
+		marginTop: Theme.spacing.lg,
+		marginBottom: Theme.spacing.xl,
 	},
 });
