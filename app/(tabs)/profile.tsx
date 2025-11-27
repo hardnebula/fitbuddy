@@ -12,6 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import Svg, { Path } from 'react-native-svg';
+import { LinearGradient } from 'expo-linear-gradient';
 import { ScreenTransition } from '../../components/ScreenTransition';
 import { AnimatedTitle } from '../../components/AnimatedTitle';
 import { BadgeCard } from '../../components/BadgeCard';
@@ -62,25 +63,25 @@ export default function ProfileScreen() {
     },
     { 
       id: '2', 
-      name: 'Lightning Fast', 
-      description: 'Achieved 30 day streak. You\'re unstoppable!',
-      image: require('../../assets/images/Badges/7 day streak.png'), // Placeholder
+      name: '30 Day Streak', 
+      description: 'Achieved 30 consecutive days of check-ins. You\'re unstoppable!',
+      image: require('../../assets/images/Badges/30 day streak.png'),
       earnedDate: new Date(2024, 10, 20),
       rarity: 'epic' as const,
     },
     { 
       id: '3', 
-      name: 'Century Club', 
+      name: '100 Check-ins', 
       description: 'Reached 100 total check-ins. A true dedication!',
-      image: require('../../assets/images/Badges/7 day streak.png'), // Placeholder
+      image: require('../../assets/images/Badges/100 Check in.png'),
       earnedDate: new Date(2024, 9, 10),
       rarity: 'epic' as const,
     },
     { 
       id: '4', 
-      name: 'Champion', 
-      description: 'Best streak of 45 days. You\'re a legend!',
-      image: require('../../assets/images/Badges/7 day streak.png'), // Placeholder
+      name: 'Legendary Badge', 
+      description: 'Achieved legendary status. You\'re a true champion!',
+      image: require('../../assets/images/Badges/Legendary badge.png'),
       earnedDate: new Date(2024, 8, 5),
       rarity: 'legendary' as const,
     },
@@ -216,28 +217,71 @@ export default function ProfileScreen() {
         {/* Badges Section */}
         <AnimatedTitle style={StyleSheet.flatten([styles.sectionTitle, { color: colors.text }])}>Achievements</AnimatedTitle>
         <View style={styles.badgesContainer}>
-          {badges.map((badge) => (
-            <TouchableOpacity 
-              key={badge.id} 
-              style={[styles.badgeCard, { backgroundColor: colors.cardSecondary }]}
-              onPress={() => setSelectedBadge(badge)}
-              activeOpacity={0.7}
-            >
-              <Image 
-                source={badge.image} 
-                style={styles.badgeImage}
-                resizeMode="contain"
-              />
-              <Text style={[styles.badgeName, { color: colors.text }]}>{badge.name}</Text>
-              <View style={[styles.rarityBadge, { 
-                backgroundColor: badge.rarity === 'legendary' ? '#F59E0B' : 
-                                 badge.rarity === 'epic' ? '#A855F7' : 
-                                 badge.rarity === 'rare' ? '#3B82F6' : '#94A3B8'
-              }]}>
-                <Text style={styles.rarityText}>{badge.rarity.toUpperCase()}</Text>
-              </View>
-            </TouchableOpacity>
-          ))}
+          {badges.map((badge) => {
+            const rarityColors = {
+              common: ['#94A3B8', '#64748B'],
+              rare: ['#3B82F6', '#2563EB'],
+              epic: ['#A855F7', '#7C3AED'],
+              legendary: ['#F59E0B', '#D97706'],
+            };
+            const rarityGlow = {
+              common: 'rgba(148, 163, 184, 0.3)',
+              rare: 'rgba(59, 130, 246, 0.4)',
+              epic: 'rgba(168, 85, 247, 0.5)',
+              legendary: 'rgba(245, 158, 11, 0.6)',
+            };
+            
+            return (
+              <TouchableOpacity 
+                key={badge.id} 
+                style={styles.badgeCardWrapper}
+                onPress={() => setSelectedBadge(badge)}
+                activeOpacity={0.8}
+              >
+                <View 
+                  style={[
+                    styles.badgeCard, 
+                    { 
+                      shadowColor: rarityGlow[badge.rarity],
+                      backgroundColor: colors.cardSecondary,
+                    }
+                  ]}
+                >
+                  {/* Rarity gradient background */}
+                  <LinearGradient
+                    colors={rarityColors[badge.rarity]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.badgeGradient}
+                  />
+                  
+                  {/* Badge Image with white border */}
+                  <View style={styles.badgeImageContainer}>
+                    <View style={styles.badgeImageWhiteBackground} />
+                    <Image 
+                      source={badge.image} 
+                      style={styles.badgeImage}
+                      resizeMode="contain"
+                    />
+                  </View>
+                  
+                  {/* Badge Info */}
+                  <View style={styles.badgeInfo}>
+                    <Text style={[styles.badgeName, { color: colors.text }]} numberOfLines={2}>
+                      {badge.name}
+                    </Text>
+                    <View style={[styles.rarityBadge, { 
+                      backgroundColor: badge.rarity === 'legendary' ? '#F59E0B' : 
+                                       badge.rarity === 'epic' ? '#A855F7' : 
+                                       badge.rarity === 'rare' ? '#3B82F6' : '#94A3B8'
+                    }]}>
+                      <Text style={styles.rarityText}>{badge.rarity.toUpperCase()}</Text>
+                    </View>
+                  </View>
+                </View>
+              </TouchableOpacity>
+            );
+          })}
         </View>
 
         {/* Badge Card Modal */}
@@ -380,20 +424,64 @@ const styles = StyleSheet.create({
   badgesContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: Theme.spacing.sm,
+    justifyContent: 'space-between',
+    marginBottom: Theme.spacing.lg,
+  },
+  badgeCardWrapper: {
+    width: '48%',
+    marginBottom: Theme.spacing.md,
   },
   badgeCard: {
-    width: '48%',
-    backgroundColor: '#F5F5F5',
-    borderRadius: Theme.borderRadius.lg,
-    padding: Theme.spacing.md,
-    alignItems: 'center',
+    width: '100%',
+    borderRadius: Theme.borderRadius.xl,
+    overflow: 'hidden',
     position: 'relative',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+    elevation: 10,
+  },
+  badgeGradient: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    opacity: 0.15,
+  },
+  badgeImageContainer: {
+    width: '100%',
+    aspectRatio: 0.72,
+    position: 'relative',
+    backgroundColor: '#FFFFFF',
+    padding: 6,
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden',
+  },
+  badgeImageWhiteBackground: {
+    position: 'absolute',
+    top: 6,
+    left: 6,
+    right: 6,
+    bottom: 6,
+    borderRadius: Theme.borderRadius.md,
+    backgroundColor: '#FFFFFF',
+    zIndex: 0,
   },
   badgeImage: {
-    width: 80,
-    height: 80,
-    marginBottom: Theme.spacing.sm,
+    width: '100%',
+    height: '100%',
+    borderRadius: Theme.borderRadius.md,
+    zIndex: 1,
+  },
+  badgeInfo: {
+    padding: Theme.spacing.sm,
+    paddingTop: Theme.spacing.xs,
+    alignItems: 'center',
+    backgroundColor: 'transparent',
+    minHeight: 70,
+    justifyContent: 'space-between',
   },
   badgeName: {
     fontSize: Theme.typography.fontSize.sm,
@@ -401,18 +489,19 @@ const styles = StyleSheet.create({
     color: '#000000',
     marginBottom: Theme.spacing.xs,
     textAlign: 'center',
+    lineHeight: 18,
   },
   rarityBadge: {
     paddingHorizontal: Theme.spacing.sm,
-    paddingVertical: 2,
+    paddingVertical: 3,
     borderRadius: Theme.borderRadius.sm,
-    marginTop: Theme.spacing.xs,
+    marginTop: 'auto',
   },
   rarityText: {
-    fontSize: 10,
+    fontSize: 8,
     fontWeight: Theme.typography.fontWeight.bold,
     color: '#FFFFFF',
-    letterSpacing: 0.5,
+    letterSpacing: 1.2,
   },
   badgeEmoji: {
     fontSize: 40,

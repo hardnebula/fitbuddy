@@ -171,11 +171,14 @@ export const BadgeCard: React.FC<BadgeCardProps> = ({ visible, onClose, badge })
               },
             ]}
           >
+            {/* White border background */}
+            <View style={styles.whiteBorderBackground} />
+            
             {/* Card Image - The actual badge card */}
             <Image
               source={badge.image}
               style={styles.cardImage}
-              resizeMode="cover"
+              resizeMode="contain"
             />
             
             {/* Holographic shine overlay */}
@@ -283,20 +286,35 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     overflow: 'hidden',
     elevation: 20,
+    backgroundColor: '#FFFFFF',
+    padding: 8,
+  },
+  whiteBorderBackground: {
+    position: 'absolute',
+    top: 8,
+    left: 8,
+    right: 8,
+    bottom: 8,
+    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
+    zIndex: 0,
   },
   cardImage: {
     width: '100%',
     height: '100%',
-    borderRadius: 20,
+    borderRadius: 12,
+    backgroundColor: 'transparent',
+    zIndex: 1,
   },
   shineOverlay: {
     position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    borderRadius: 20,
+    top: 8,
+    left: 8,
+    right: 8,
+    bottom: 8,
+    borderRadius: 12,
     overflow: 'hidden',
+    zIndex: 2,
   },
   shineGradient: {
     flex: 1,
