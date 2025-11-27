@@ -1,125 +1,64 @@
-import { Tabs } from 'expo-router';
-import { Platform, StyleSheet } from 'react-native';
-import Svg, { Path } from 'react-native-svg';
-import * as Haptics from 'expo-haptics';
-import { Theme } from '../../constants/Theme';
+import { Platform, DynamicColorIOS } from 'react-native';
+import { NativeTabs, Icon, Label, VectorIcon } from 'expo-router/unstable-native-tabs';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useTheme } from '../../contexts/ThemeContext';
 
 export default function TabsLayout() {
   const { colors } = useTheme();
-  
-  const handleTabPress = () => {
-    // Haptic feedback al cambiar de tab
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-  };
 
   return (
-    <Tabs
-      screenOptions={{
-        headerShown: false,
-        tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.textTertiary,
-        tabBarStyle: {
-          backgroundColor: colors.surface,
-          borderTopColor: colors.border,
-          borderTopWidth: 1,
-          paddingTop: Platform.OS === 'ios' ? 8 : 4,
-          paddingBottom: Platform.OS === 'ios' ? 20 : 8,
-          height: Platform.OS === 'ios' ? 88 : 60,
-        },
-        tabBarLabelStyle: {
-          fontSize: 0,
-        },
-        tabBarShowLabel: false,
+    <NativeTabs
+      // Selected tab icon color
+      tintColor={Platform.select({
+        ios: DynamicColorIOS({
+          dark: colors.primary,
+          light: colors.primary,
+        }),
+        android: colors.primary,
+      })}
+      // Label color
+      labelStyle={{
+        color: Platform.select({
+          ios: DynamicColorIOS({
+            dark: colors.textTertiary,
+            light: colors.textTertiary,
+          }),
+          android: colors.textTertiary,
+        }),
       }}
-      screenListeners={{
-        tabPress: handleTabPress,
-      }}
+      // Tab bar background color
+      barTintColor={colors.surface}
     >
-      <Tabs.Screen
-        name="home"
-        options={{
-          title: 'Home',
-          tabBarIcon: ({ color, size }) => (
-            <TabIcon name="home" color={color} size={size} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="groups"
-        options={{
-          title: 'Groups',
-          tabBarIcon: ({ color, size }) => (
-            <TabIcon name="groups" color={color} size={size} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="profile"
-        options={{
-          title: 'Profile',
-          tabBarIcon: ({ color, size }) => (
-            <TabIcon name="profile" color={color} size={size} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="settings"
-        options={{
-          href: null,
-        }}
-      />
-    </Tabs>
-  );
-}
+      <NativeTabs.Trigger name="home">
+        <Label hidden />
+        {Platform.OS === 'ios' ? (
+          <Icon sf={{ default: 'house', selected: 'house.fill' }} />
+        ) : (
+          <Icon src={<VectorIcon family={MaterialIcons} name="home" />} />
+        )}
+      </NativeTabs.Trigger>
 
-// Minimalist SVG icons for tabs - ultra simple line icons
-function TabIcon({ name, color, size }: { name: string; color: string; size: number }) {
-  const iconSize = size * 0.8;
-  const strokeWidth = 2;
-  
-  if (name === 'home') {
-    return (
-      <Svg width={iconSize} height={iconSize} viewBox="0 0 24 24" fill="none">
-        <Path
-          d="m2.25 12 8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25"
-          stroke={color}
-          strokeWidth={strokeWidth}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      </Svg>
-    );
-  }
-  
-  if (name === 'groups') {
-    return (
-      <Svg width={iconSize} height={iconSize} viewBox="0 0 24 24" fill="none">
-        <Path
-          d="M18 18.72a9.094 9.094 0 0 0 3.741-.479 3 3 0 0 0-4.682-2.72m.94 3.198.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0 1 12 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 0 1 6 18.719m12 0a5.971 5.971 0 0 0-.941-3.197m0 0A5.995 5.995 0 0 0 12 12.75a5.995 5.995 0 0 0-5.058 2.772m0 0a3 3 0 0 0-4.681 2.72 8.986 8.986 0 0 0 3.74.477m.94-3.197a5.971 5.971 0 0 0-.94 3.197M15 6.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm6 3a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Zm-13.5 0a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Z"
-          stroke={color}
-          strokeWidth={strokeWidth}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      </Svg>
-    );
-  }
-  
-  if (name === 'profile') {
-    return (
-      <Svg width={iconSize} height={iconSize} viewBox="0 0 24 24" fill="none">
-        <Path
-          d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z"
-          stroke={color}
-          strokeWidth={strokeWidth}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      </Svg>
-    );
-  }
-  
-  return null;
+      <NativeTabs.Trigger name="groups">
+        <Label hidden />
+        {Platform.OS === 'ios' ? (
+          <Icon sf={{ default: 'person.2', selected: 'person.2.fill' }} />
+        ) : (
+          <Icon src={<VectorIcon family={MaterialIcons} name="groups" />} />
+        )}
+      </NativeTabs.Trigger>
+
+      <NativeTabs.Trigger name="profile">
+        <Label hidden />
+        {Platform.OS === 'ios' ? (
+          <Icon sf={{ default: 'person', selected: 'person.fill' }} />
+        ) : (
+          <Icon src={<VectorIcon family={MaterialIcons} name="person" />} />
+        )}
+      </NativeTabs.Trigger>
+
+      {/* Settings tab is hidden - not accessible via tab bar */}
+      <NativeTabs.Trigger name="settings" hidden />
+    </NativeTabs>
+  );
 }
 
