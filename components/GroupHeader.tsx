@@ -13,7 +13,6 @@ interface GroupHeaderProps {
 	} | null;
 	memberCount?: number;
 	groupImage?: string | null;
-	onImagePress?: () => void;
 	onMenuPress?: () => void;
 }
 
@@ -21,7 +20,6 @@ export function GroupHeader({
 	group,
 	memberCount,
 	groupImage,
-	onImagePress,
 	onMenuPress,
 }: GroupHeaderProps) {
 	const { colors } = useTheme();
@@ -32,94 +30,64 @@ export function GroupHeader({
 
 	return (
 		<View style={styles.header}>
-			<View style={styles.headerLeft}>
-				<TouchableOpacity
-					onPress={onImagePress}
-					activeOpacity={0.7}
-					style={[
-						styles.groupImageContainer,
-						{
-							backgroundColor: colors.cardSecondary,
-							borderColor: colors.border,
-						},
-					]}
-				>
-					{groupImage ? (
-						<>
-							<Image source={{ uri: groupImage }} style={styles.groupImage} />
-							<View
-								style={[
-									styles.cameraIconOverlay,
-									{ backgroundColor: colors.overlay },
-								]}
-							>
-								<Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
-									<Path
-										strokeLinecap="round"
-										strokeLinejoin="round"
-										strokeWidth={2}
-										stroke={colors.text}
-										d="M6.827 6.175h2.304a2 2 0 0 1 1.682.94l.836 1.261c.498.85.608 1.968.272 2.914-.214.557-.124 1.191.235 1.648a2.5 2.5 0 0 0 3.414.58l1.304-.997a2 2 0 0 1 1.682-.94h2.304M15.714 12.175a3 3 0 1 1-5.196-3 3 3 0 0 1 5.196 3Z"
-									/>
-									<Path
-										strokeLinecap="round"
-										strokeLinejoin="round"
-										strokeWidth={2}
-										stroke={colors.text}
-										d="M19.5 19.5h-15A2.5 2.5 0 0 1 2 17V7.5a2.5 2.5 0 0 1 2.5-2.5h15A2.5 2.5 0 0 1 22 7.5V17a2.5 2.5 0 0 1-2.5 2.5Z"
-									/>
-								</Svg>
-							</View>
-						</>
-					) : (
-						<View style={styles.groupImagePlaceholder}>
-							<Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
-								<Path
-									strokeLinecap="round"
-									strokeLinejoin="round"
-									strokeWidth={2}
-									stroke={colors.textSecondary}
-									d="M6.827 6.175h2.304a2 2 0 0 1 1.682.94l.836 1.261c.498.85.608 1.968.272 2.914-.214.557-.124 1.191.235 1.648a2.5 2.5 0 0 0 3.414.58l1.304-.997a2 2 0 0 1 1.682-.94h2.304M15.714 12.175a3 3 0 1 1-5.196-3 3 3 0 0 1 5.196 3Z"
-								/>
-								<Path
-									strokeLinecap="round"
-									strokeLinejoin="round"
-									strokeWidth={2}
-									stroke={colors.textSecondary}
-									d="M19.5 19.5h-15A2.5 2.5 0 0 1 2 17V7.5a2.5 2.5 0 0 1 2.5-2.5h15A2.5 2.5 0 0 1 22 7.5V17a2.5 2.5 0 0 1-2.5 2.5Z"
-								/>
-							</Svg>
-						</View>
-					)}
-				</TouchableOpacity>
-				<View style={styles.groupInfo}>
-					<View style={styles.groupNameRow}>
-						<Text style={[styles.groupName, { color: colors.text }]}>
-							{group.name}
-						</Text>
-						<TouchableOpacity
-							onPress={onMenuPress}
-							activeOpacity={0.6}
-							style={styles.chevronButton}
-						>
-							<Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
-								<Path
-									strokeLinecap="round"
-									strokeLinejoin="round"
-									strokeWidth={2}
-									stroke={colors.textSecondary}
-									d="M8.25 15L12 18.75 15.75 15m-7.5-6L12 5.25 15.75 9"
-								/>
-							</Svg>
-						</TouchableOpacity>
+			<View
+				style={[
+					styles.groupImageContainer,
+					{
+						backgroundColor: colors.cardSecondary,
+						borderColor: colors.border,
+					},
+				]}
+			>
+				{groupImage ? (
+					<Image source={{ uri: groupImage }} style={styles.groupImage} />
+				) : (
+					<View style={styles.groupImagePlaceholder}>
+						<Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
+							<Path
+								strokeLinecap="round"
+								strokeLinejoin="round"
+								strokeWidth={2}
+								stroke={colors.primary}
+								d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z"
+							/>
+						</Svg>
 					</View>
-					{memberCount !== undefined && (
-						<Text style={[styles.groupSubtext, { color: colors.textTertiary }]}>
-							{memberCount} {memberCount === 1 ? "member" : "members"}
-						</Text>
-					)}
-				</View>
+				)}
 			</View>
+
+			<TouchableOpacity
+				onPress={onMenuPress}
+				activeOpacity={0.7}
+				style={styles.groupInfo}
+			>
+				<View style={styles.groupNameRow}>
+					<Text style={[styles.groupName, { color: colors.text }]} numberOfLines={1}>
+						{group.name}
+					</Text>
+					<View
+						style={[
+							styles.chevronButton,
+							{ backgroundColor: colors.cardSecondary },
+						]}
+					>
+						<Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
+							<Path
+								strokeLinecap="round"
+								strokeLinejoin="round"
+								strokeWidth={2.5}
+								stroke={colors.textSecondary}
+								d="M6 9l6 6 6-6"
+							/>
+						</Svg>
+					</View>
+				</View>
+				{memberCount !== undefined && (
+					<Text style={[styles.groupSubtext, { color: colors.textTertiary }]}>
+						{memberCount} {memberCount === 1 ? "member" : "members"}
+					</Text>
+				)}
+			</TouchableOpacity>
 		</View>
 	);
 }
@@ -127,67 +95,52 @@ export function GroupHeader({
 const styles = StyleSheet.create({
 	header: {
 		flexDirection: "row",
-		justifyContent: "space-between",
 		alignItems: "center",
 		marginBottom: Theme.spacing.xl,
-	},
-	headerLeft: {
-		flexDirection: "row",
-		alignItems: "center",
 		gap: Theme.spacing.md,
-		flex: 1,
 	},
 	groupImageContainer: {
-		width: 64,
-		height: 64,
-		borderRadius: 32,
+		width: 56,
+		height: 56,
+		borderRadius: 28,
 		overflow: "hidden",
 		justifyContent: "center",
 		alignItems: "center",
-		borderWidth: 2,
-		position: "relative",
+		borderWidth: 1,
 	},
 	groupImage: {
-		width: 64,
-		height: 64,
-	},
-	cameraIconOverlay: {
-		position: "absolute",
-		bottom: 0,
-		right: 0,
-		width: 24,
-		height: 24,
-		borderRadius: 12,
-		justifyContent: "center",
-		alignItems: "center",
-		borderWidth: 2,
-		borderColor: "transparent",
+		width: "100%",
+		height: "100%",
 	},
 	groupImagePlaceholder: {
-		width: 64,
-		height: 64,
+		width: "100%",
+		height: "100%",
 		justifyContent: "center",
 		alignItems: "center",
 	},
 	groupInfo: {
 		flex: 1,
+		justifyContent: "center",
 	},
 	groupNameRow: {
 		flexDirection: "row",
 		alignItems: "center",
-		gap: Theme.spacing.xs,
+		gap: Theme.spacing.sm,
 	},
 	groupName: {
-		fontSize: 28,
+		fontSize: 24,
 		fontWeight: Theme.typography.fontWeight.bold,
-		flex: 1,
+		flexShrink: 1,
 	},
 	chevronButton: {
-		padding: Theme.spacing.xs,
-		marginLeft: -Theme.spacing.xs,
+		width: 28,
+		height: 28,
+		borderRadius: 14,
+		justifyContent: "center",
+		alignItems: "center",
 	},
 	groupSubtext: {
 		fontSize: Theme.typography.fontSize.sm,
-		marginTop: Theme.spacing.xs,
+		marginTop: 2,
 	},
 });

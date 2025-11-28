@@ -20,7 +20,7 @@ export default defineSchema({
   groups: defineTable({
     name: v.string(),
     inviteCode: v.string(),
-    createdBy: v.id("users"),
+    createdBy: v.optional(v.id("users")), // Optional for anonymous groups
     createdAt: v.number(),
     groupStreak: v.number(),
     isArchived: v.optional(v.boolean()),

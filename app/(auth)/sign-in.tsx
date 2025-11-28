@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
 	View,
 	Text,
@@ -9,31 +9,37 @@ import {
 	Platform,
 	Alert,
 	TouchableOpacity,
+	Image,
 } from "react-native";
-import { useRouter } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Button } from "../../components/Button";
-import { Input } from "../../components/Input";
 import { useScrollIndicator } from "../../components/ScrollIndicator";
 import { Theme } from "../../constants/Theme";
 import { useTheme } from "../../contexts/ThemeContext";
 import { useAuthContext } from "../../contexts/AuthContext";
 import { authClient } from "../../lib/auth-client";
-import { markOnboardingComplete } from "../../lib/onboarding";
-
-// Email validation helper
-const isValidEmail = (email: string): boolean => {
-	const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-	return emailRegex.test(email);
-};
+import {
+	markOnboardingComplete,
+	isOnboardingComplete,
+} from "../../lib/onboarding";
+import { useConvexMutation } from "@convex-dev/react-query";
+import { api } from "../../convex/_generated/api";
 
 export default function SignInScreen() {
 	const router = useRouter();
+	const params = useLocalSearchParams<{ reason?: string }>();
 	const { colors, isDark } = useTheme();
 	const { login } = useAuthContext();
-	const [email, setEmail] = useState("");
-	const [password, setPassword] = useState("");
+	const migrateUserData = useConvexMutation(api.users.migrateAnonymousUserData);
 	const [isLoading, setIsLoading] = useState(false);
+	const [loadingProvider, setLoadingProvider] = useState<
+		"apple" | "google" | null
+	>(null);
+	const [showGetStarted, setShowGetStarted] = useState(false);
+	const [signInContext, setSignInContext] = useState<
+		"welcome" | "create-group" | "join-group" | "other"
+	>("welcome");
 	const {
 		contentHeight,
 		viewHeight,
@@ -42,39 +48,68 @@ export default function SignInScreen() {
 		handleLayout,
 	} = useScrollIndicator();
 
-	const handleSignIn = async () => {
-		// Validate inputs
-		if (!email.trim()) {
-			Alert.alert("Error", "Please enter your email address");
-			return;
-		}
+	// Check onboarding status and navigation context
+	useEffect(() => {
+		const checkContext = async () => {
+			const onboardingComplete = await isOnboardingComplete();
 
-		if (!isValidEmail(email.trim())) {
-			Alert.alert("Error", "Please enter a valid email address");
-			return;
-		}
+			// Determine context based on route params and onboarding status
+			if (params.reason === "create-group") {
+				setSignInContext("create-group");
+				setShowGetStarted(false); // Don't show "Get Started" when coming from create-group
+			} else if (params.reason === "join-group") {
+				setSignInContext("join-group");
+				setShowGetStarted(false);
+			} else if (!onboardingComplete) {
+				// Coming from landing/welcome page
+				setSignInContext("welcome");
+				setShowGetStarted(true);
+			} else {
+				setSignInContext("other");
+				setShowGetStarted(false);
+			}
+		};
+		checkContext();
+	}, [params.reason]);
 
-		if (!password.trim()) {
-			Alert.alert("Error", "Please enter your password");
-			return;
-		}
-
+	const handleSocialSignIn = async (provider: "apple" | "google") => {
 		setIsLoading(true);
+		setLoadingProvider(provider);
 
 		try {
-			// Sign in with Better Auth
-			const result = await authClient.signIn.email({
-				email: email.trim().toLowerCase(),
-				password: password.trim(),
+			// Check if user was previously anonymous
+			const sessionBefore = await authClient.getSession();
+			const anonymousEmail = sessionBefore?.data?.user?.isAnonymous
+				? sessionBefore.data.user.email
+				: null;
+
+			// Sign in with Better Auth - it handles the OAuth flow automatically
+			// Better Auth will automatically link anonymous accounts via onLinkAccount callback
+			const result = await authClient.signIn.social({
+				provider,
+				callbackURL: "/(tabs)/home",
 			});
 
-			if (result.data?.user) {
-				// Get user data from Better Auth
+			// Check if result has user (success) or url (redirect)
+			if (result.data && "user" in result.data) {
 				const user = result.data.user;
-				
+
+				// Migrate Convex user data if user was previously anonymous
+				if (anonymousEmail && anonymousEmail !== user.email) {
+					try {
+						await migrateUserData({
+							anonymousEmail,
+							newEmail: user.email || `${provider}-user@${provider}.com`,
+						});
+					} catch (migrationError) {
+						console.error("Error migrating user data:", migrationError);
+						// Continue even if migration fails
+					}
+				}
+
 				// Login to Convex (this will get or create user)
 				await login(
-					user.email || email.trim().toLowerCase(),
+					user.email || `${provider}-user@${provider}.com`,
 					user.name || "User",
 					user.image || undefined
 				);
@@ -84,59 +119,32 @@ export default function SignInScreen() {
 
 				// Navigate to home
 				router.replace("/(tabs)/home");
+			} else if (result.data && "url" in result.data) {
+				// Redirect case - Better Auth handles this automatically via Expo plugin
+				// The redirect will complete the OAuth flow and call the callbackURL
+				return;
 			} else if (result.error) {
-				// Handle Better Auth errors
-				const errorMessage = result.error.message || "Invalid email or password";
-				
-				// Check if user doesn't exist (they need to go through onboarding)
-				if (errorMessage.toLowerCase().includes("not found") || 
-				    errorMessage.toLowerCase().includes("doesn't exist") ||
-				    errorMessage.toLowerCase().includes("no account")) {
-					Alert.alert(
-						"Account Not Found",
-						"You don't have an account yet. Please complete onboarding first.",
-						[
-							{
-								text: "Go to Onboarding",
-								onPress: () => router.replace("/(onboarding)/goal"),
-							},
-							{ text: "Cancel", style: "cancel" },
-						]
-					);
-				} else {
-					Alert.alert("Sign In Failed", errorMessage);
-				}
-			} else {
-				Alert.alert("Error", "Invalid email or password");
+				const errorMessage =
+					result.error.message || `${provider} Sign In failed`;
+				Alert.alert("Sign In Failed", errorMessage);
 			}
 		} catch (error: any) {
-			console.error("Sign in error:", error);
-			const errorMessage = error?.message || error?.toString() || "An unexpected error occurred";
-			
-			// Check if it's a "user not found" type error
-			if (errorMessage.toLowerCase().includes("not found") || 
-			    errorMessage.toLowerCase().includes("doesn't exist") ||
-			    errorMessage.toLowerCase().includes("no account") ||
-			    errorMessage.toLowerCase().includes("invalid credentials")) {
-				Alert.alert(
-					"Account Not Found",
-					"You don't have an account yet. Please complete onboarding first.",
-					[
-						{
-							text: "Go to Onboarding",
-							onPress: () => router.replace("/(onboarding)/goal"),
-						},
-						{ text: "Cancel", style: "cancel" },
-					]
-				);
-			} else {
-				Alert.alert(
-					"Sign In Failed",
-					errorMessage
-				);
+			console.error(`${provider} Sign In error:`, error);
+
+			// Handle user cancellation
+			if (
+				error.code === "ERR_CANCELED" ||
+				error.message?.includes("canceled")
+			) {
+				return; // User canceled, don't show error
 			}
+
+			const errorMessage =
+				error?.message || error?.toString() || "An unexpected error occurred";
+			Alert.alert("Sign In Failed", errorMessage);
 		} finally {
 			setIsLoading(false);
+			setLoadingProvider(null);
 		}
 	};
 
@@ -168,58 +176,126 @@ export default function SignInScreen() {
 							keyboardShouldPersistTaps="handled"
 						>
 							<View style={styles.content}>
-								<Text style={[styles.title, { color: colors.text }]}>
-									Sign In
-								</Text>
-								<Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-									Welcome back! Sign in to continue.
-								</Text>
-
-								<View style={styles.form}>
-									<Input
-										label="Email"
-										value={email}
-										onChangeText={setEmail}
-										placeholder="Enter your email"
-										keyboardType="email-address"
-										autoCapitalize="none"
-										autoComplete="email"
-										editable={!isLoading}
-									/>
-
-									<Input
-										label="Password"
-										value={password}
-										onChangeText={setPassword}
-										placeholder="Enter your password"
-										secureTextEntry
-										autoCapitalize="none"
-										autoComplete="password"
-										editable={!isLoading}
+								{/* Hero Logo */}
+								<View style={styles.logoContainer}>
+									<Image
+										source={require("../../assets/images/Logo-teo-Photoroom.png")}
+										style={styles.logo}
+										resizeMode="contain"
 									/>
 								</View>
 
+								{/* Header Text - Context-aware messaging */}
+								<View style={styles.headerContainer}>
+									<Text style={[styles.title, { color: colors.text }]}>
+										{signInContext === "create-group"
+											? "Sign In to Create Your Group"
+											: signInContext === "join-group"
+												? "Sign In to Join a Group"
+												: "Welcome Back!"}
+									</Text>
+									<Text
+										style={[styles.subtitle, { color: colors.textSecondary }]}
+									>
+										{signInContext === "create-group"
+											? "Create your group and start your journey with friends. Sign in to get started!"
+											: signInContext === "join-group"
+												? "Join your friends' group and stay accountable together. Sign in to continue!"
+												: "Sign in to continue your journey with your group"}
+									</Text>
+								</View>
+
 								<View style={styles.buttonContainer}>
+									{/* Apple Sign In Button */}
+									{Platform.OS === "ios" && (
+										<Button
+											title={
+												loadingProvider === "apple"
+													? "Signing in..."
+													: "Continue with Apple"
+											}
+											onPress={() => handleSocialSignIn("apple")}
+											fullWidth
+											size="large"
+											loading={loadingProvider === "apple"}
+											disabled={isLoading}
+											style={styles.socialButton}
+										/>
+									)}
+
+									{/* Google Sign In Button */}
 									<Button
-										title="Sign In"
-										onPress={handleSignIn}
+										title={
+											loadingProvider === "google"
+												? "Signing in..."
+												: "Continue with Google"
+										}
+										onPress={() => handleSocialSignIn("google")}
 										fullWidth
 										size="large"
+										variant={Platform.OS === "ios" ? "outline" : "primary"}
+										loading={loadingProvider === "google"}
 										disabled={isLoading}
+										style={styles.socialButton}
 									/>
 
-									<View style={styles.signUpContainer}>
-										<Text style={[styles.signUpText, { color: colors.textSecondary }]}>
-											Don't have an account?{" "}
-										</Text>
-										<TouchableOpacity
-											onPress={handleGoToSignUp}
-											disabled={isLoading}
-										>
-											<Text style={[styles.signUpLink, { color: colors.primary }]}>
-												Get Started
+									{/* Divider - Only show when "Get Started" is visible */}
+									{showGetStarted && (
+										<View style={styles.dividerContainer}>
+											<View
+												style={[
+													styles.divider,
+													{ backgroundColor: colors.border },
+												]}
+											/>
+											<Text
+												style={[
+													styles.dividerText,
+													{ color: colors.textSecondary },
+												]}
+											>
+												or
 											</Text>
-										</TouchableOpacity>
+											<View
+												style={[
+													styles.divider,
+													{ backgroundColor: colors.border },
+												]}
+											/>
+										</View>
+									)}
+
+									{/* Sign Up Link - Only show "Get Started" when onboarding is not complete */}
+									{showGetStarted && (
+										<View style={styles.signUpContainer}>
+											<Text
+												style={[
+													styles.signUpText,
+													{ color: colors.textSecondary },
+												]}
+											>
+												Don't have an account?{" "}
+											</Text>
+											<TouchableOpacity
+												onPress={handleGoToSignUp}
+												disabled={isLoading}
+											>
+												<Text
+													style={[styles.signUpLink, { color: colors.primary }]}
+												>
+													Get Started
+												</Text>
+											</TouchableOpacity>
+										</View>
+									)}
+
+									{/* Trust Indicator */}
+									<View style={styles.trustContainer}>
+										<Text
+											style={[styles.trustText, { color: colors.textTertiary }]}
+										>
+											🔒 Secure sign in with one tap
+										</Text>
 									</View>
 								</View>
 							</View>
@@ -249,8 +325,24 @@ const styles = StyleSheet.create({
 		flexGrow: 1,
 	},
 	content: {
-		paddingTop: Theme.spacing.xl * 2,
+		paddingTop: Theme.spacing.lg,
 		paddingBottom: Theme.spacing.xl,
+		minHeight: "100%",
+		justifyContent: "center",
+	},
+	logoContainer: {
+		alignItems: "center",
+		marginBottom: Theme.spacing.xl,
+		paddingTop: Theme.spacing.md,
+	},
+	logo: {
+		width: 120,
+		height: 120,
+	},
+	headerContainer: {
+		alignItems: "center",
+		marginBottom: Theme.spacing.xl * 2,
+		paddingHorizontal: Theme.spacing.md,
 	},
 	title: {
 		fontSize: 32,
@@ -259,17 +351,30 @@ const styles = StyleSheet.create({
 		textAlign: "center",
 	},
 	subtitle: {
-		fontSize: 18,
-		marginBottom: Theme.spacing.xl * 2,
+		fontSize: 16,
 		textAlign: "center",
-		lineHeight: 26,
-	},
-	form: {
-		gap: Theme.spacing.lg,
-		marginBottom: Theme.spacing.xl,
+		lineHeight: 24,
+		paddingHorizontal: Theme.spacing.sm,
 	},
 	buttonContainer: {
 		gap: Theme.spacing.md,
+	},
+	socialButton: {
+		width: "100%",
+		marginBottom: Theme.spacing.sm,
+	},
+	dividerContainer: {
+		flexDirection: "row",
+		alignItems: "center",
+		marginVertical: Theme.spacing.lg,
+	},
+	divider: {
+		flex: 1,
+		height: 1,
+	},
+	dividerText: {
+		marginHorizontal: Theme.spacing.md,
+		fontSize: Theme.typography.fontSize.sm,
 	},
 	signUpContainer: {
 		flexDirection: "row",
@@ -284,5 +389,12 @@ const styles = StyleSheet.create({
 		fontSize: 16,
 		fontWeight: "600",
 	},
+	trustContainer: {
+		marginTop: Theme.spacing.lg,
+		alignItems: "center",
+	},
+	trustText: {
+		fontSize: Theme.typography.fontSize.sm,
+		textAlign: "center",
+	},
 });
-

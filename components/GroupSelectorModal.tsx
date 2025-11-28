@@ -1,24 +1,19 @@
-import React, { useEffect, useRef } from 'react';
+import React from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  Modal,
   TouchableOpacity,
-  TouchableWithoutFeedback,
-  Animated,
-  Dimensions,
   ScrollView,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
+import Svg, { Path } from "react-native-svg";
+import { BottomSheet } from '@/components/BottomSheet';
 import { Button } from '@/components/Button';
 import { Theme } from '@/constants/Theme';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Id } from '@/convex/_generated/dataModel';
 import { SafeAreaView } from 'react-native-safe-area-context';
-
-const { height: SCREEN_HEIGHT } = Dimensions.get('window');
-const DRAWER_HEIGHT = SCREEN_HEIGHT * 0.75;
 
 interface GroupSelectorModalProps {
   visible: boolean;
@@ -29,9 +24,12 @@ interface GroupSelectorModalProps {
   }>;
   selectedGroupId: Id<'groups'> | null;
   onClose: () => void;
-  onSelectGroup: (groupId: Id<'groups'>) => void;
+  onSelectGroup: (groupId: Id<'groups'> | null) => void;
   onCreateGroup?: () => void;
 }
+
+// Stable snap points to prevent re-renders
+const MODAL_SNAP_POINTS = ['65%'];
 
 export function GroupSelectorModal({
   visible,
@@ -41,290 +39,221 @@ export function GroupSelectorModal({
   onSelectGroup,
   onCreateGroup,
 }: GroupSelectorModalProps) {
-  const { colors, isDark } = useTheme();
-  const slideAnim = useRef(new Animated.Value(DRAWER_HEIGHT)).current;
-  const opacityAnim = useRef(new Animated.Value(0)).current;
+  const { colors } = useTheme();
 
-  useEffect(() => {
-    if (visible) {
-      Animated.parallel([
-        Animated.timing(slideAnim, {
-          toValue: 0,
-          duration: 300,
-          useNativeDriver: true,
-        }),
-        Animated.timing(opacityAnim, {
-          toValue: 1,
-          duration: 300,
-          useNativeDriver: true,
-        }),
-      ]).start();
-    } else {
-      Animated.parallel([
-        Animated.timing(slideAnim, {
-          toValue: DRAWER_HEIGHT,
-          duration: 250,
-          useNativeDriver: true,
-        }),
-        Animated.timing(opacityAnim, {
-          toValue: 0,
-          duration: 250,
-          useNativeDriver: true,
-        }),
-      ]).start();
-    }
-  }, [visible]);
+  const handleSelectGroup = (groupId: Id<'groups'>) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    onSelectGroup(groupId);
+    onClose();
+  };
 
-  const handleClose = () => {
-    Animated.parallel([
-      Animated.timing(slideAnim, {
-        toValue: DRAWER_HEIGHT,
-        duration: 250,
-        useNativeDriver: true,
-      }),
-      Animated.timing(opacityAnim, {
-        toValue: 0,
-        duration: 250,
-        useNativeDriver: true,
-      }),
-    ]).start(() => {
-      onClose();
-    });
+  const handleCreateGroup = () => {
+    onClose();
+    onCreateGroup?.();
   };
 
   return (
-    <Modal
+    <BottomSheet
       visible={visible}
-      transparent={true}
-      animationType="none"
-      onRequestClose={handleClose}
+      onClose={onClose}
+      snapPoints={MODAL_SNAP_POINTS}
+      enablePanDownToClose={true}
     >
-      <View style={styles.modalContainer}>
-        <Animated.View
-          style={[
-            styles.overlay,
-            {
-              opacity: opacityAnim,
-              backgroundColor: isDark
-                ? 'rgba(0, 0, 0, 0.7)'
-                : 'rgba(0, 0, 0, 0.5)',
-            },
-          ]}
-        >
-          <TouchableWithoutFeedback onPress={handleClose}>
-            <View style={styles.overlayTouchable} />
-          </TouchableWithoutFeedback>
-        </Animated.View>
+      <View style={styles.container}>
+        {/* Header */}
+        <View style={styles.header}>
+          <Text style={[styles.modalTitle, { color: colors.text }]}>
+            Switch Group
+          </Text>
+        </View>
 
-        <Animated.View
-          style={[
-            styles.drawer,
-            {
-              backgroundColor: colors.surface,
-              transform: [{ translateY: slideAnim }],
-            },
-          ]}
+        {/* Groups List */}
+        <ScrollView
+          style={styles.groupsList}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.groupsListContent}
         >
-          <SafeAreaView edges={['bottom']} style={styles.drawerContent}>
-            {/* Handle bar */}
-            <View style={styles.handleContainer}>
-              <View
-                style={[
-                  styles.handle,
-                  { backgroundColor: colors.border },
-                ]}
-              />
+          {/* Personal Option */}
+          <TouchableOpacity
+            style={[
+              styles.groupItem,
+              {
+                backgroundColor: selectedGroupId === null ? colors.cardSecondary : 'transparent',
+              },
+            ]}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              onSelectGroup(null);
+              onClose();
+            }}
+            activeOpacity={0.7}
+          >
+            <View style={[styles.groupIcon, { backgroundColor: colors.primary + '20' }]}>
+              <Svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke={colors.primary} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                <Path d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+              </Svg>
             </View>
 
-            {/* Header */}
-            <View style={styles.header}>
-              <Text style={[styles.modalTitle, { color: colors.text }]}>
-                Select Group
-              </Text>
+            <View style={styles.groupItemContent}>
               <Text
+                numberOfLines={1}
                 style={[
-                  styles.modalSubtitle,
-                  { color: colors.textSecondary },
+                  styles.groupItemName,
+                  {
+                    color: colors.text,
+                    fontWeight: selectedGroupId === null ? '700' : '500',
+                  },
                 ]}
               >
-                Choose which group to display
+                Personal
+              </Text>
+              <Text style={[styles.personalSubtext, { color: colors.textSecondary }]}>
+                Your individual progress
               </Text>
             </View>
 
-            {/* Groups List */}
-            <ScrollView
-              style={styles.groupsList}
-              showsVerticalScrollIndicator={false}
-              contentContainerStyle={styles.groupsListContent}
-            >
-              {groups.map((group) => (
-                <TouchableOpacity
-                  key={group._id}
-                  style={[
-                    styles.groupItem,
-                    {
-                      backgroundColor:
-                        selectedGroupId === group._id
-                          ? colors.primary + '15'
-                          : colors.cardSecondary,
-                      borderColor:
-                        selectedGroupId === group._id
-                          ? colors.primary
-                          : 'transparent',
-                    },
-                  ]}
-                  onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    onSelectGroup(group._id);
-                    handleClose();
-                  }}
-                  activeOpacity={0.7}
-                >
-                  <View style={styles.groupItemContent}>
-                    <View style={styles.groupItemLeft}>
-                      <Text
-                        style={[
-                          styles.groupItemName,
-                          {
-                            color: colors.text,
-                            fontWeight:
-                              selectedGroupId === group._id
-                                ? Theme.typography.fontWeight.semibold
-                                : Theme.typography.fontWeight.normal,
-                          },
-                        ]}
-                      >
-                        {group.name}
-                      </Text>
-                      <Text
-                        style={[
-                          styles.groupItemInfo,
-                          { color: colors.textSecondary },
-                        ]}
-                      >
-                        {group.groupStreak} day streak
-                      </Text>
-                    </View>
-                    {selectedGroupId === group._id && (
-                      <View
-                        style={[
-                          styles.checkmarkContainer,
-                          { backgroundColor: colors.primary },
-                        ]}
-                      >
-                        <Text style={styles.checkmark}>✓</Text>
-                      </View>
-                    )}
-                  </View>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-
-            {/* Actions */}
-            {onCreateGroup && (
-              <View
-                style={[
-                  styles.actions,
-                  { borderTopColor: colors.border },
-                ]}
-              >
-                <Button
-                  title="Create New Group"
-                  onPress={() => {
-                    handleClose();
-                    onCreateGroup();
-                  }}
-                  fullWidth
-                />
+            {selectedGroupId === null && (
+              <View style={[styles.checkmarkContainer, { backgroundColor: colors.primary }]}>
+                <Svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={4} strokeLinecap="round" strokeLinejoin="round">
+                  <Path d="M20 6L9 17l-5-5" />
+                </Svg>
               </View>
             )}
+          </TouchableOpacity>
+
+          {groups.map((group) => {
+            const isSelected = selectedGroupId === group._id;
+            return (
+              <TouchableOpacity
+                key={group._id}
+                style={[
+                  styles.groupItem,
+                  {
+                    backgroundColor: isSelected ? colors.cardSecondary : 'transparent',
+                  },
+                ]}
+                onPress={() => handleSelectGroup(group._id)}
+                activeOpacity={0.7}
+              >
+                {/* Group Icon Placeholder */}
+                <View style={[styles.groupIcon, { backgroundColor: colors.primary + '20' }]}>
+                  <Text style={[styles.groupInitial, { color: colors.primary }]}>
+                    {group.name.charAt(0).toUpperCase()}
+                  </Text>
+                </View>
+
+                <View style={styles.groupItemContent}>
+                  <Text
+                    numberOfLines={1}
+                    style={[
+                      styles.groupItemName,
+                      {
+                        color: colors.text,
+                        fontWeight: isSelected ? '700' : '500',
+                      },
+                    ]}
+                  >
+                    {group.name}
+                  </Text>
+                  <View style={styles.streakContainer}>
+                    <Text style={styles.streakEmoji}>🔥</Text>
+                    <Text style={[styles.streakText, { color: colors.textSecondary }]}>
+                      {group.groupStreak}
+                    </Text>
+                  </View>
+                </View>
+
+                {isSelected && (
+                  <View style={[styles.checkmarkContainer, { backgroundColor: colors.primary }]}>
+                    <Svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={4} strokeLinecap="round" strokeLinejoin="round">
+                      <Path d="M20 6L9 17l-5-5" />
+                    </Svg>
+                  </View>
+                )}
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+
+        {/* Footer Actions */}
+        {onCreateGroup && (
+          <SafeAreaView edges={['bottom']} style={[styles.footer, { borderTopColor: colors.border }]}>
+            <Button
+              title="Create New Group"
+              onPress={handleCreateGroup}
+              fullWidth
+              size="large"
+              variant="filled"
+            />
           </SafeAreaView>
-        </Animated.View>
+        )}
       </View>
-    </Modal>
+    </BottomSheet>
   );
 }
 
 const styles = StyleSheet.create({
-  modalContainer: {
+  container: {
     flex: 1,
-  },
-  overlay: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  overlayTouchable: {
-    flex: 1,
-  },
-  drawer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: DRAWER_HEIGHT,
-    borderTopLeftRadius: Theme.borderRadius.xl,
-    borderTopRightRadius: Theme.borderRadius.xl,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: -4,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 12,
-    elevation: 16,
-  },
-  drawerContent: {
-    flex: 1,
-  },
-  handleContainer: {
-    alignItems: 'center',
-    paddingTop: Theme.spacing.md,
-    paddingBottom: Theme.spacing.sm,
-  },
-  handle: {
-    width: 40,
-    height: 4,
-    borderRadius: 2,
   },
   header: {
     paddingHorizontal: Theme.spacing.xl,
+    paddingTop: Theme.spacing.md,
     paddingBottom: Theme.spacing.lg,
   },
   modalTitle: {
     fontSize: Theme.typography.fontSize['2xl'],
     fontWeight: Theme.typography.fontWeight.bold,
-    marginBottom: Theme.spacing.xs,
   },
-  modalSubtitle: {
+  personalSubtext: {
     fontSize: Theme.typography.fontSize.sm,
+    marginTop: 2,
   },
   groupsList: {
     flex: 1,
   },
   groupsListContent: {
-    paddingHorizontal: Theme.spacing.xl,
+    paddingHorizontal: Theme.spacing.lg,
     paddingBottom: Theme.spacing.lg,
   },
   groupItem: {
-    borderRadius: Theme.borderRadius.lg,
-    marginBottom: Theme.spacing.md,
-    borderWidth: 2,
-    overflow: 'hidden',
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: Theme.spacing.md,
+    marginBottom: Theme.spacing.sm,
+    borderRadius: Theme.borderRadius.xl,
+  },
+  groupIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: Theme.spacing.md,
+  },
+  groupInitial: {
+    fontSize: Theme.typography.fontSize.xl,
+    fontWeight: Theme.typography.fontWeight.bold,
   },
   groupItemContent: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: Theme.spacing.lg,
-  },
-  groupItemLeft: {
     flex: 1,
+    marginRight: Theme.spacing.md,
   },
   groupItemName: {
     fontSize: Theme.typography.fontSize.lg,
-    marginBottom: Theme.spacing.xs,
+    marginBottom: 2,
   },
-  groupItemInfo: {
+  streakContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  streakEmoji: {
+    fontSize: 12,
+    marginRight: 4,
+  },
+  streakText: {
     fontSize: Theme.typography.fontSize.sm,
+    fontWeight: Theme.typography.fontWeight.medium,
   },
   checkmarkContainer: {
     width: 24,
@@ -332,18 +261,11 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
-    marginLeft: Theme.spacing.md,
   },
-  checkmark: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: Theme.typography.fontWeight.bold,
-  },
-  actions: {
+  footer: {
     paddingHorizontal: Theme.spacing.xl,
-    paddingTop: Theme.spacing.md,
-    paddingBottom: Theme.spacing.lg,
+    paddingTop: Theme.spacing.lg,
+    paddingBottom: Theme.spacing.md,
     borderTopWidth: 1,
   },
 });
-

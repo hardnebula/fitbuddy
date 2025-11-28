@@ -3,6 +3,7 @@ import 'react-native-url-polyfill/auto';
 import { createAuthClient } from "better-auth/react";
 import { convexClient } from "@convex-dev/better-auth/client/plugins";
 import { expoClient } from "@better-auth/expo/client";
+import { anonymousClient } from "better-auth/client/plugins";
 import Constants from "expo-constants";
 import * as SecureStore from "expo-secure-store";
 
@@ -15,6 +16,7 @@ export const authClient = createAuthClient({
       storage: SecureStore,
     }),
     convexClient(),
+    anonymousClient(),
   ],
 });
 

@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from "react";
 import {
 	View,
+	Text,
 	StyleSheet,
 	ScrollView,
 	StatusBar,
@@ -14,12 +15,15 @@ import { GroupHeader } from "@/components/GroupHeader";
 import { HeroCard } from "@/components/HeroCard";
 import { StreakHero } from "@/components/StreakHero";
 import { StreakSection } from "@/components/StreakSection";
-import { GroupFeed } from "@/components/GroupFeed";
 import { PersonalFeed } from "@/components/PersonalFeed";
+import { UserGroupActivity } from "@/components/UserGroupActivity";
 import { CheckInModal } from "@/components/CheckInModal";
 import { GroupSelectorModal } from "@/components/GroupSelectorModal";
 import { StoryModal } from "@/components/StoryModal";
 import { EmptyState } from "@/components/EmptyState";
+import SquircleView from "@/components/SquircleView";
+import { LinearGradient } from "expo-linear-gradient";
+import Svg, { Path } from "react-native-svg";
 import { useRouter } from "expo-router";
 import { Theme } from "@/constants/Theme";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -53,6 +57,7 @@ export default function HomeScreen() {
 	// Group selection logic
 	const {
 		selectedGroup,
+		selectedGroupId,
 		setSelectedGroupId,
 		isLoading: groupSelectionLoading,
 	} = useGroupSelection(groups);
@@ -349,7 +354,6 @@ export default function HomeScreen() {
 							group={selectedGroup}
 							memberCount={memberCount}
 							groupImage={groupImage}
-							onImagePress={handleSelectGroupImage}
 							onMenuPress={() => setShowGroupSelector(true)}
 						/>
 					)}
@@ -371,13 +375,96 @@ export default function HomeScreen() {
 						/>
 					)}
 
-					{/* Feed - show personal feed if no groups, otherwise group feed */}
-					{hasGroups ? (
-						<GroupFeed
-							checkIns={checkIns}
-							onCheckInPress={(checkIn) => setSelectedStory(checkIn)}
-							onRefresh={handleRefresh}
-						/>
+					{/* Feed - show personal feed if Personal mode selected or no groups, otherwise user group activity */}
+					{hasGroups && selectedGroupId !== null ? (
+						<>
+							<UserGroupActivity
+								checkIns={checkIns}
+								userId={userId}
+								totalCheckIns={
+									userId ? user?.totalCheckIns || 0 : localStats.totalCheckIns
+								}
+								bestStreak={
+									userId ? user?.bestStreak || 0 : localStats.bestStreak
+								}
+								onCheckInPress={(checkIn) => setSelectedStory(checkIn)}
+								onRefresh={handleRefresh}
+							/>
+
+							{/* Leaderboard Card - Coming Soon */}
+							<View style={styles.leaderboardSection}>
+								<SquircleView
+									style={[
+										styles.leaderboardCard,
+										{
+											borderColor: colors.border,
+											borderWidth: 1,
+											opacity: 0.5,
+										},
+									]}
+									cornerSmoothing={1.0}
+								>
+									<LinearGradient
+										colors={
+											isDark
+												? [
+														"rgba(139, 92, 246, 0.08)",
+														"rgba(139, 92, 246, 0.03)",
+													]
+												: [
+														"rgba(139, 92, 246, 0.05)",
+														"rgba(139, 92, 246, 0.02)",
+													]
+										}
+										start={{ x: 0, y: 0 }}
+										end={{ x: 1, y: 1 }}
+										style={styles.leaderboardGradient}
+									>
+										<View style={styles.leaderboardContent}>
+											<View
+												style={[
+													styles.leaderboardIcon,
+													{ backgroundColor: colors.primary + "15" },
+												]}
+											>
+												<Svg
+													width={24}
+													height={24}
+													viewBox="0 0 24 24"
+													fill="none"
+												>
+													<Path
+														strokeLinecap="round"
+														strokeLinejoin="round"
+														strokeWidth={2}
+														stroke={colors.primary}
+														d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"
+													/>
+												</Svg>
+											</View>
+											<View style={styles.leaderboardText}>
+												<Text
+													style={[
+														styles.leaderboardTitle,
+														{ color: colors.text },
+													]}
+												>
+													Leaderboard
+												</Text>
+												<Text
+													style={[
+														styles.leaderboardSubtext,
+														{ color: colors.textSecondary },
+													]}
+												>
+													Coming soon
+												</Text>
+											</View>
+										</View>
+									</LinearGradient>
+								</SquircleView>
+							</View>
+						</>
 					) : (
 						<PersonalFeed
 							checkIns={checkIns}
@@ -400,7 +487,9 @@ export default function HomeScreen() {
 						groups={groups}
 						selectedGroupId={selectedGroup?._id || null}
 						onClose={() => setShowGroupSelector(false)}
-						onSelectGroup={(groupId) => setSelectedGroupId(groupId)}
+						onSelectGroup={(groupId) => {
+							setSelectedGroupId(groupId);
+						}}
 					/>
 				)}
 
@@ -460,5 +549,39 @@ const styles = StyleSheet.create({
 		flex: 1,
 		justifyContent: "center",
 		alignItems: "center",
+	},
+	leaderboardSection: {
+		marginTop: Theme.spacing.xl,
+		marginBottom: Theme.spacing.md,
+	},
+	leaderboardCard: {
+		overflow: "hidden",
+		borderRadius: 24,
+	},
+	leaderboardGradient: {
+		padding: Theme.spacing.lg,
+	},
+	leaderboardContent: {
+		flexDirection: "row",
+		alignItems: "center",
+		gap: Theme.spacing.md,
+	},
+	leaderboardIcon: {
+		width: 48,
+		height: 48,
+		borderRadius: 24,
+		justifyContent: "center",
+		alignItems: "center",
+	},
+	leaderboardText: {
+		flex: 1,
+	},
+	leaderboardTitle: {
+		fontSize: Theme.typography.fontSize.lg,
+		fontWeight: Theme.typography.fontWeight.bold,
+		marginBottom: 2,
+	},
+	leaderboardSubtext: {
+		fontSize: Theme.typography.fontSize.sm,
 	},
 });

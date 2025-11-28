@@ -4,6 +4,7 @@ import { useFocusEffect } from 'expo-router';
 import { Id } from '@/convex/_generated/dataModel';
 
 const SELECTED_GROUP_KEY = 'fitbuddy_selected_group_id';
+const PERSONAL_MODE_KEY = 'PERSONAL'; // Special marker to indicate Personal was explicitly selected
 
 interface UseGroupSelectionReturn {
   selectedGroupId: Id<'groups'> | null;
@@ -16,8 +17,8 @@ interface UseGroupSelectionReturn {
 export function useGroupSelection(
   groups: any[] | undefined
 ): UseGroupSelectionReturn {
-  const [selectedGroupId, setSelectedGroupId] = useState<Id<'groups'> | null>(
-    null
+  const [selectedGroupId, setSelectedGroupId] = useState<Id<'groups'> | null | undefined>(
+    undefined // Use undefined to indicate "not loaded yet"
   );
   const [isLoading, setIsLoading] = useState(true);
   const [hasLoadedFromStorage, setHasLoadedFromStorage] = useState(false);
@@ -27,11 +28,20 @@ export function useGroupSelection(
   const loadSavedGroupId = useCallback(async () => {
     try {
       const savedGroupId = await AsyncStorage.getItem(SELECTED_GROUP_KEY);
-      if (savedGroupId) {
+      if (savedGroupId === PERSONAL_MODE_KEY) {
+        // User explicitly selected Personal mode
+        setSelectedGroupId(null);
+      } else if (savedGroupId) {
+        // User selected a specific group
         setSelectedGroupId(savedGroupId as Id<'groups'>);
+      } else {
+        // No selection saved yet - default to first group if available
+        // This will be handled in the selectedGroup computation
+        setSelectedGroupId(undefined as any);
       }
     } catch (error) {
       console.error('Error loading saved group ID:', error);
+      setSelectedGroupId(undefined as any);
     } finally {
       setIsLoading(false);
       setHasLoadedFromStorage(true);
@@ -66,6 +76,11 @@ export function useGroupSelection(
 
   // Compute the selected group based on available groups
   const selectedGroup = useMemo(() => {
+    // If selectedGroupId is explicitly null, return null (Personal mode)
+    if (selectedGroupId === null && hasLoadedFromStorage) {
+      return null;
+    }
+
     if (!groups || groups.length === 0) return null;
 
     // If we have a saved selection, try to find it
@@ -75,7 +90,8 @@ export function useGroupSelection(
     }
 
     // If no valid selection and we've loaded from storage, default to first group
-    if (hasLoadedFromStorage) {
+    // But only if selectedGroupId is undefined (not explicitly set to null)
+    if (hasLoadedFromStorage && selectedGroupId === undefined) {
       return groups[0] || null;
     }
 
@@ -88,9 +104,11 @@ export function useGroupSelection(
       setSelectedGroupId(id);
       try {
         if (id) {
+          // Save the group ID
           await AsyncStorage.setItem(SELECTED_GROUP_KEY, id);
         } else {
-          await AsyncStorage.removeItem(SELECTED_GROUP_KEY);
+          // Save special marker to indicate Personal was explicitly selected
+          await AsyncStorage.setItem(SELECTED_GROUP_KEY, PERSONAL_MODE_KEY);
         }
       } catch (error) {
         console.error('Error saving group ID:', error);
@@ -100,7 +118,7 @@ export function useGroupSelection(
   );
 
   return {
-    selectedGroupId: selectedGroup?._id || null,
+    selectedGroupId: selectedGroupId === undefined ? (selectedGroup?._id || null) : selectedGroupId, // Return actual state, or derive from selectedGroup if not loaded yet
     setSelectedGroupId: setSelectedGroupIdWithPersistence,
     selectedGroup,
     isLoading,

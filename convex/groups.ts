@@ -10,7 +10,7 @@ function generateInviteCode(): string {
 export const createGroup = mutation({
   args: {
     name: v.string(),
-    createdBy: v.id("users"),
+    createdBy: v.optional(v.id("users")), // Optional for anonymous groups
     memberEmails: v.optional(v.array(v.string())),
   },
   handler: async (ctx, args) => {
@@ -40,13 +40,15 @@ export const createGroup = mutation({
       isArchived: false,
     });
 
-    // Add creator as member
-    await ctx.db.insert("groupMembers", {
-      groupId,
-      userId: args.createdBy,
-      joinedAt: Date.now(),
-      isActive: true,
-    });
+    // Add creator as member only if they're signed in
+    if (args.createdBy) {
+      await ctx.db.insert("groupMembers", {
+        groupId,
+        userId: args.createdBy,
+        joinedAt: Date.now(),
+        isActive: true,
+      });
+    }
 
     // Add other members if provided
     if (args.memberEmails && args.memberEmails.length > 0) {
@@ -67,7 +69,7 @@ export const createGroup = mutation({
       }
     }
 
-    return groupId;
+    return { groupId, inviteCode };
   },
 });
 
@@ -218,9 +220,24 @@ export const archiveGroup = mutation({
       throw new Error("Group not found");
     }
 
-    // Only creator can archive
-    if (group.createdBy !== args.userId) {
+    // Only creator can archive (if group has a creator)
+    if (group.createdBy && group.createdBy !== args.userId) {
       throw new Error("Only group creator can archive the group");
+    }
+    
+    // Anonymous groups can be archived by any member
+    if (!group.createdBy) {
+      // Check if user is a member
+      const membership = await ctx.db
+        .query("groupMembers")
+        .withIndex("by_group_and_user", (q) =>
+          q.eq("groupId", args.groupId).eq("userId", args.userId)
+        )
+        .first();
+      
+      if (!membership || !membership.isActive) {
+        throw new Error("Only group members can archive the group");
+      }
     }
 
     await ctx.db.patch(args.groupId, {

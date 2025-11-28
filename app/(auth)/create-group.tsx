@@ -10,10 +10,13 @@ import {
 	Alert,
 	Image,
 	StatusBar,
+	Modal,
+	Pressable,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
+import * as Clipboard from "expo-clipboard";
 import Svg, { Path } from "react-native-svg";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { LinearGradient } from "expo-linear-gradient";
@@ -27,8 +30,12 @@ import { Theme } from "../../constants/Theme";
 import { useTheme } from "../../contexts/ThemeContext";
 import { useAuthContext } from "../../contexts/AuthContext";
 import { useGroups } from "../../lib/groups";
+import { authClient } from "../../lib/auth-client";
+import { useAuth } from "../../lib/auth";
+import { markOnboardingComplete } from "../../lib/onboarding";
 
 const SELECTED_GROUP_KEY = "fitbuddy_selected_group_id";
+const ANONYMOUS_GROUP_INVITE_KEY = "fitbuddy_anonymous_group_invite";
 
 // Email validation helper
 const isValidEmail = (email: string): boolean => {
@@ -39,8 +46,9 @@ const isValidEmail = (email: string): boolean => {
 export default function CreateGroupScreen() {
 	const router = useRouter();
 	const { colors, isDark } = useTheme();
-	const { userId } = useAuthContext();
+	const { userId, login } = useAuthContext();
 	const { createGroupMutation } = useGroups();
+	const { login: loginMutation } = useAuth();
 
 	const [groupName, setGroupName] = useState("");
 	const [members, setMembers] = useState<string[]>([]);
@@ -95,35 +103,76 @@ export default function CreateGroupScreen() {
 			return;
 		}
 
-		if (!userId) {
-			Alert.alert(
-				"Sign In Required",
-				"Please sign in to create a group",
-				[
-					{ text: "Cancel", style: "cancel" },
-					{ text: "Sign In", onPress: () => router.push("/(auth)/sign-in") },
-				]
-			);
-			return;
-		}
-
 		if (isCreating) return; // Prevent double submission
 
 		setIsCreating(true);
 		try {
-			const newGroupId = await createGroupMutation.mutateAsync({
+			let currentUserId = userId;
+
+			// If user is not signed in, sign them in anonymously
+			if (!currentUserId) {
+				try {
+					const anonymousResult = await authClient.signIn.anonymous();
+					if (anonymousResult.data?.user) {
+						const betterAuthUser = anonymousResult.data.user;
+						const anonymousEmail =
+							betterAuthUser.email || `temp-${betterAuthUser.id}@anonymous.com`;
+
+						// First, create/get Convex user to get the userId
+						currentUserId = await loginMutation(
+							anonymousEmail,
+							betterAuthUser.name || "Anonymous User",
+							undefined // Anonymous users don't have avatars
+						);
+
+						// Then update AuthContext state
+						await login(
+							anonymousEmail,
+							betterAuthUser.name || "Anonymous User",
+							undefined
+						);
+					} else {
+						throw new Error("Failed to create anonymous session");
+					}
+				} catch (anonError: any) {
+					console.error("Anonymous sign-in error:", anonError);
+					throw new Error(
+						"Failed to create anonymous account. Please try again."
+					);
+				}
+			}
+
+			const result = await createGroupMutation.mutateAsync({
 				name: groupName.trim(),
-				createdBy: userId,
+				createdBy: currentUserId,
 				memberEmails: members.length > 0 ? members : undefined,
 			});
 
+			// Handle response - it now returns { groupId, inviteCode }
+			const groupId = result.groupId;
+			const inviteCode = result.inviteCode;
+
 			// Set the newly created group as the selected group
-			await AsyncStorage.setItem(SELECTED_GROUP_KEY, newGroupId);
+			await AsyncStorage.setItem(SELECTED_GROUP_KEY, groupId);
+
+			// Check if user is anonymous (Better Auth session check)
+			const session = await authClient.getSession();
+			const isAnonymous = session?.data?.user?.isAnonymous || false;
+
+			if (isAnonymous) {
+				// Store invite code locally so they can rejoin later
+				await AsyncStorage.setItem(ANONYMOUS_GROUP_INVITE_KEY, inviteCode);
+			}
+
+			// Mark onboarding as complete (if not already) since user has created a group
+			await markOnboardingComplete();
+
+			// Navigate to root index to reset the entire navigation stack
+			// The index route will check onboarding status and redirect to /(tabs)/home
+			// This ensures we clear all auth screens from the stack properly
+			router.replace("/");
 
 			Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-
-			// Navigate to home with the new group selected
-			router.replace("/(tabs)/home");
 		} catch (error: any) {
 			console.error("Error creating group:", error);
 			Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
@@ -134,7 +183,15 @@ export default function CreateGroupScreen() {
 		} finally {
 			setIsCreating(false);
 		}
-	}, [groupName, userId, members, isCreating, createGroupMutation, router]);
+	}, [
+		groupName,
+		userId,
+		members,
+		isCreating,
+		createGroupMutation,
+		router,
+		login,
+	]);
 
 	const canAddMember =
 		memberInput.trim() &&
@@ -607,5 +664,86 @@ const styles = StyleSheet.create({
 	createButtonContainer: {
 		marginTop: Theme.spacing.lg,
 		marginBottom: Theme.spacing.xl,
+	},
+	modalOverlay: {
+		flex: 1,
+		backgroundColor: "rgba(0, 0, 0, 0.5)",
+		justifyContent: "center",
+		alignItems: "center",
+		padding: Theme.spacing.lg,
+	},
+	modalContent: {
+		width: "100%",
+		maxWidth: 400,
+	},
+	modalCard: {
+		borderRadius: Theme.borderRadius.xl,
+		padding: Theme.spacing.xl,
+	},
+	modalHeader: {
+		alignItems: "center",
+		marginBottom: Theme.spacing.lg,
+	},
+	modalTitle: {
+		fontSize: Theme.typography.fontSize["2xl"],
+		fontWeight: Theme.typography.fontWeight.bold,
+		marginBottom: Theme.spacing.xs,
+	},
+	modalSubtitle: {
+		fontSize: Theme.typography.fontSize.sm,
+	},
+	inviteCodeContainer: {
+		borderRadius: Theme.borderRadius.lg,
+		padding: Theme.spacing.lg,
+		alignItems: "center",
+		marginBottom: Theme.spacing.lg,
+		borderWidth: 2,
+		borderStyle: "dashed",
+		borderColor: "transparent",
+	},
+	inviteCode: {
+		fontSize: 24,
+		fontWeight: Theme.typography.fontWeight.bold,
+		letterSpacing: 2,
+		marginBottom: Theme.spacing.xs,
+		fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace",
+	},
+	copyHint: {
+		fontSize: Theme.typography.fontSize.xs,
+	},
+	suggestionContainer: {
+		flexDirection: "row",
+		alignItems: "flex-start",
+		marginBottom: Theme.spacing.lg,
+		padding: Theme.spacing.md,
+		borderRadius: Theme.borderRadius.lg,
+		backgroundColor: "transparent",
+	},
+	suggestionIcon: {
+		width: 40,
+		height: 40,
+		borderRadius: 20,
+		justifyContent: "center",
+		alignItems: "center",
+		marginRight: Theme.spacing.md,
+		flexShrink: 0,
+	},
+	suggestionText: {
+		flex: 1,
+	},
+	suggestionTitle: {
+		fontSize: Theme.typography.fontSize.base,
+		fontWeight: Theme.typography.fontWeight.bold,
+		marginBottom: Theme.spacing.xs,
+	},
+	suggestionDescription: {
+		fontSize: Theme.typography.fontSize.sm,
+		lineHeight: 20,
+	},
+	modalActions: {
+		gap: Theme.spacing.md,
+	},
+	modalButton: {
+		width: "100%",
 	},
 });

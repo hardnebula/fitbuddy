@@ -88,9 +88,9 @@ export default function GroupsScreen() {
 		router.push("/(tabs)/home");
 	};
 
-	const handleGoToPersonal = () => {
+	const handleGoToPersonal = async () => {
 		Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-		setSelectedGroupId(null);
+		await setSelectedGroupId(null);
 		router.push("/(tabs)/home");
 	};
 
@@ -297,92 +297,128 @@ export default function GroupsScreen() {
 								onPress={() => handleSelectGroup(group._id)}
 								activeOpacity={0.8}
 							>
-								<Card
-									style={StyleSheet.flatten([
+								<SquircleView
+									style={[
 										styles.groupCard,
 										{
-											backgroundColor: colors.cardSecondary,
+											borderRadius: 24,
 											borderColor:
 												selectedGroupId === group._id
 													? colors.primary
 													: colors.border,
 											borderWidth: selectedGroupId === group._id ? 2 : 1,
 										},
-									])}
+									]}
+									cornerSmoothing={1.0}
 								>
-									<View style={styles.groupCardHeader}>
-										<View style={styles.groupCardTitleRow}>
-											<View
-												style={[
-													styles.groupIcon,
-													{ backgroundColor: colors.primary + "15" },
-												]}
-											>
-												<Svg
-													width={20}
-													height={20}
-													viewBox="0 0 24 24"
-													fill="none"
+									<LinearGradient
+										colors={
+											isDark
+												? [
+														"rgba(139, 92, 246, 0.15)",
+														"rgba(139, 92, 246, 0.05)",
+													]
+												: [
+														"rgba(139, 92, 246, 0.1)",
+														"rgba(139, 92, 246, 0.03)",
+													]
+										}
+										start={{ x: 0, y: 0 }}
+										end={{ x: 1, y: 1 }}
+										style={styles.groupCardGradient}
+									>
+										<View style={styles.groupCardHeader}>
+											<View style={styles.groupCardTitleRow}>
+												<View
+													style={[
+														styles.groupIcon,
+														{ backgroundColor: colors.primary + "20" },
+													]}
 												>
-													<Path
-														strokeLinecap="round"
-														strokeLinejoin="round"
-														strokeWidth={2}
-														stroke={colors.primary}
-														d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z"
-													/>
-												</Svg>
+													<Svg
+														width={20}
+														height={20}
+														viewBox="0 0 24 24"
+														fill="none"
+													>
+														<Path
+															strokeLinecap="round"
+															strokeLinejoin="round"
+															strokeWidth={2}
+															stroke={colors.primary}
+															d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z"
+														/>
+													</Svg>
+												</View>
+												<View style={styles.groupCardTitleText}>
+													<Text
+														style={[styles.groupName, { color: colors.text }]}
+													>
+														{group.name}
+													</Text>
+													<Text
+														style={[
+															styles.memberCount,
+															{ color: colors.textTertiary },
+														]}
+													>
+														{group.memberCount}{" "}
+														{group.memberCount === 1 ? "member" : "members"}
+													</Text>
+												</View>
 											</View>
-											<View style={styles.groupCardTitleText}>
-												<Text
-													style={[styles.groupName, { color: colors.text }]}
+											{selectedGroupId === group._id && (
+												<View
+													style={[
+														styles.selectedBadge,
+														{ backgroundColor: colors.primary },
+													]}
 												>
-													{group.name}
+													<Text style={styles.selectedBadgeText}>Active</Text>
+												</View>
+											)}
+										</View>
+
+										<View style={styles.groupStatsRow}>
+											<View style={styles.groupStatItem}>
+												<Text
+													style={[styles.statValue, { color: colors.primary }]}
+												>
+													{group.groupStreak}
 												</Text>
 												<Text
 													style={[
-														styles.memberCount,
-														{ color: colors.textTertiary },
+														styles.statLabel,
+														{ color: colors.textSecondary },
 													]}
 												>
-													{group.memberCount}{" "}
-													{group.memberCount === 1 ? "member" : "members"}
+													Streak 🔥
+												</Text>
+											</View>
+											<View
+												style={[
+													styles.statDivider,
+													{ backgroundColor: colors.border },
+												]}
+											/>
+											<View style={styles.groupStatItem}>
+												<Text
+													style={[styles.statValue, { color: colors.text }]}
+												>
+													{group.memberCount}
+												</Text>
+												<Text
+													style={[
+														styles.statLabel,
+														{ color: colors.textSecondary },
+													]}
+												>
+													Members
 												</Text>
 											</View>
 										</View>
-										{selectedGroupId === group._id && (
-											<View
-												style={[
-													styles.selectedBadge,
-													{ backgroundColor: colors.primary },
-												]}
-											>
-												<Text style={styles.selectedBadgeText}>Active</Text>
-											</View>
-										)}
-									</View>
-
-									<View style={styles.groupStatsRow}>
-										<View style={styles.groupStatItem}>
-											<Text
-												style={[
-													styles.groupStatValue,
-													{ color: colors.primary },
-												]}
-											>
-												{group.groupStreak}
-											</Text>
-											<Text
-												style={[
-													styles.groupStatLabel,
-													{ color: colors.textSecondary },
-												]}
-											>
-												Group Streak 🔥
-											</Text>
-										</View>
-									</View>
-								</Card>
+									</LinearGradient>
+								</SquircleView>
 							</TouchableOpacity>
 						))
 					) : (
@@ -540,6 +576,15 @@ const styles = StyleSheet.create({
 		width: 1,
 		height: 40,
 	},
+	groupStatsRow: {
+		flexDirection: "row",
+		alignItems: "center",
+		justifyContent: "space-around",
+	},
+	groupStatItem: {
+		alignItems: "center",
+		flex: 1,
+	},
 	// Section Header
 	sectionHeader: {
 		flexDirection: "row",
@@ -557,6 +602,15 @@ const styles = StyleSheet.create({
 	// Group Cards
 	groupCard: {
 		marginBottom: Theme.spacing.md,
+		overflow: "hidden",
+		shadowColor: "#8B5CF6",
+		shadowOffset: { width: 0, height: 0 },
+		shadowOpacity: 0.15,
+		shadowRadius: 12,
+		elevation: 6,
+	},
+	groupCardGradient: {
+		padding: Theme.spacing.lg,
 	},
 	groupCardHeader: {
 		flexDirection: "row",
@@ -587,22 +641,6 @@ const styles = StyleSheet.create({
 	},
 	memberCount: {
 		fontSize: Theme.typography.fontSize.sm,
-	},
-	groupStatsRow: {
-		flexDirection: "row",
-		alignItems: "center",
-	},
-	groupStatItem: {
-		flex: 1,
-	},
-	groupStatValue: {
-		fontSize: Theme.typography.fontSize.xl,
-		fontWeight: Theme.typography.fontWeight.bold,
-		marginBottom: 2,
-	},
-	groupStatLabel: {
-		fontSize: Theme.typography.fontSize.xs,
-		fontWeight: Theme.typography.fontWeight.medium,
 	},
 	// Empty State
 	emptyCard: {

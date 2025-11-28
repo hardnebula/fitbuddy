@@ -27,6 +27,7 @@ import { Theme } from "../../constants/Theme";
 import { useTheme } from "../../contexts/ThemeContext";
 import { useAuthContext } from "../../contexts/AuthContext";
 import { useGroups, useGroupByInviteCode } from "../../lib/groups";
+import { markOnboardingComplete } from "../../lib/onboarding";
 
 const SELECTED_GROUP_KEY = "fitbuddy_selected_group_id";
 
@@ -62,10 +63,11 @@ export default function JoinGroupScreen() {
 		}
 
 		if (!userId) {
-			Alert.alert("Sign In Required", "Please sign in to join a group", [
-				{ text: "Cancel", style: "cancel" },
-				{ text: "Sign In", onPress: () => router.push("/(auth)/sign-in") },
-			]);
+			// Navigate directly to sign-in page with context
+			router.push({
+				pathname: "/(auth)/sign-in",
+				params: { reason: "join-group" },
+			});
 			return;
 		}
 
@@ -81,10 +83,15 @@ export default function JoinGroupScreen() {
 			// Set the joined group as the selected group
 			await AsyncStorage.setItem(SELECTED_GROUP_KEY, groupId);
 
+			// Mark onboarding as complete (if not already) since user has joined a group
+			await markOnboardingComplete();
+
 			Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
-			// Navigate to home with the new group selected
-			router.replace("/(tabs)/home");
+			// Navigate to root index to reset the entire navigation stack
+			// The index route will check onboarding status and redirect to /(tabs)/home
+			// This ensures we clear all auth screens from the stack properly
+			router.replace("/");
 		} catch (error: any) {
 			console.error("Error joining group:", error);
 			Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
