@@ -1,8 +1,8 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Id } from "@/convex/_generated/dataModel";
 
-const LOCAL_CHECKINS_KEY = "@fitbuddy:local_checkins";
-const LOCAL_USER_STATS_KEY = "@fitbuddy:local_user_stats";
+const LOCAL_CHECKINS_KEY = "@teo:local_checkins";
+const LOCAL_USER_STATS_KEY = "@teo:local_user_stats";
 
 export interface LocalCheckIn {
 	id: string; // temporary local ID
@@ -250,7 +250,7 @@ export async function updateLocalCheckIn(
 ): Promise<void> {
 	try {
 		const checkIns = await getLocalCheckIns();
-		
+
 		// Check if check-in exists
 		const checkInExists = checkIns.some((ci) => ci.id === checkInId);
 		if (!checkInExists) {
@@ -268,7 +268,7 @@ export async function updateLocalCheckIn(
 					}
 				: ci
 		);
-		
+
 		await AsyncStorage.setItem(LOCAL_CHECKINS_KEY, JSON.stringify(updated));
 
 		// Update local stats after update

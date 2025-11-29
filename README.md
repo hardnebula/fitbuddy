@@ -1,10 +1,12 @@
-# FitBuddy
+# Teo
 
-A fitness accountability app built with React Native and Expo. Stay accountable with your group and build healthy habits together.
+**Teo: Daily Accountability**
+
+An accountability app built with React Native and Expo. Stay consistent with your group and build habits together with Teo, your accountability buddy.
 
 ## Features
 
-- ✅ Group-based fitness accountability
+- ✅ Group-based accountability
 - ✅ Daily check-ins with photo support
 - ✅ Streak tracking with animated badges
 - ✅ Group feed with real-time updates
@@ -25,16 +27,19 @@ A fitness accountability app built with React Native and Expo. Stay accountable 
 ### Installation
 
 1. Install dependencies:
+
 ```bash
 npm install
 ```
 
 2. Start the development server:
+
 ```bash
 npm start
 ```
 
 3. Run on your preferred platform:
+
 ```bash
 # iOS
 npm run ios
@@ -49,6 +54,7 @@ npm run web
 ### First Run
 
 The app will start at the welcome screen. You can:
+
 - Create a new group
 - Join an existing group with an invite code
 - Explore all features with mock data
@@ -56,6 +62,7 @@ The app will start at the welcome screen. You can:
 ## Design System
 
 ### Colors
+
 - **Primary**: #3B82F6 (Bright Blue) - buttons, CTAs, active elements
 - **Background**: #0F172A (Almost Black) - main background
 - **Secondary**: #1E293B (Deep Navy) - cards, surfaces
@@ -64,23 +71,26 @@ The app will start at the welcome screen. You can:
 - **Warning**: #F97316 (Orange) - celebrations, notifications
 
 ### Typography
+
 - Base font size: 15px
 - Headings: 20px+
 - High contrast (white on dark)
 - System fonts (SF Pro Display iOS, Roboto Android)
 
 ### Spacing
+
 - Consistent gaps: 18-22px
 - Generous whitespace for clarity
 
 ### Border Radius
+
 - Soft corners: 10-16px
 - Rounded buttons and cards
 
 ## Project Structure
 
 ```
-FitBuddy/
+Teo/
 ├── app/
 │   ├── (auth)/              # Authentication screens
 │   │   ├── welcome.tsx      # Welcome/login screen
@@ -111,24 +121,28 @@ FitBuddy/
 ## Key Features Explained
 
 ### Check-in Flow
-1. Tap "I Exercised Today" button on home screen
+
+1. Tap the check-in button on home screen
 2. Add optional photo and note
 3. Confirm check-in
 4. See success feedback and updated streak
 
 ### Group Management
+
 - Create groups with up to 4 members
 - Share invite codes
 - Track group streaks
 - View group feed with member check-ins
 
 ### Profile & Stats
+
 - View total check-ins
 - See best and current streak
 - Monthly calendar showing check-in history
 - Editable profile information
 
 ### Animations
+
 - Button press animations with haptic feedback
 - Streak badge pulse animation
 - Smooth transitions between screens
@@ -167,7 +181,7 @@ FitBuddy/
 - Backend integration for real data
 - Push notifications for reminders
 - Social features (comments, likes)
-- Workout type tracking
+- Activity type tracking
 - Progress photos gallery
 - Export stats and data
 

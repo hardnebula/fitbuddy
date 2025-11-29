@@ -1,4 +1,4 @@
-# Configuración de Convex para FitBuddy
+# Configuración de Convex para Teo
 
 ## ✅ Configuración Completada
 
@@ -62,14 +62,17 @@ Se ha configurado Convex con las siguientes funcionalidades:
 ### 🎣 Hooks de React (`lib/`)
 
 #### `lib/auth.ts`
+
 - `useAuth()` - Hook para autenticación
 - `useCurrentUser()` - Hook para obtener usuario actual
 
 #### `lib/groups.ts`
+
 - `useGroups()` - Hook con todas las operaciones de grupos
 - `useGroupByInviteCode()` - Hook para buscar grupo por código
 
 #### `lib/checkIns.ts`
+
 - `useCheckIns()` - Hook con todas las operaciones de check-ins
 - `useGroupCheckIns()` - Hook para obtener check-ins de grupo
 - `useUserCheckIns()` - Hook para obtener check-ins de usuario
@@ -88,92 +91,93 @@ Se ha configurado Convex con las siguientes funcionalidades:
 ### Ejemplo: Login de Usuario
 
 ```typescript
-import { useAuthContext } from '../contexts/AuthContext';
+import { useAuthContext } from "../contexts/AuthContext";
 
 function LoginScreen() {
-  const { login } = useAuthContext();
+	const { login } = useAuthContext();
 
-  const handleLogin = async () => {
-    try {
-      await login('user@example.com', 'John Doe');
-      // Usuario logueado
-    } catch (error) {
-      console.error('Error:', error);
-    }
-  };
+	const handleLogin = async () => {
+		try {
+			await login("user@example.com", "John Doe");
+			// Usuario logueado
+		} catch (error) {
+			console.error("Error:", error);
+		}
+	};
 }
 ```
 
 ### Ejemplo: Crear Grupo
 
 ```typescript
-import { useGroups } from '../lib/groups';
-import { useAuthContext } from '../contexts/AuthContext';
+import { useGroups } from "../lib/groups";
+import { useAuthContext } from "../contexts/AuthContext";
 
 function CreateGroupScreen() {
-  const { userId } = useAuthContext();
-  const { createGroup } = useGroups();
+	const { userId } = useAuthContext();
+	const { createGroup } = useGroups();
 
-  const handleCreate = async () => {
-    if (!userId) return;
-    
-    const groupId = await createGroup({
-      name: 'Morning Runners',
-      createdBy: userId,
-      memberEmails: ['friend@example.com'],
-    });
-  };
+	const handleCreate = async () => {
+		if (!userId) return;
+
+		const groupId = await createGroup({
+			name: "Morning Runners",
+			createdBy: userId,
+			memberEmails: ["friend@example.com"],
+		});
+	};
 }
 ```
 
 ### Ejemplo: Hacer Check-in
 
 ```typescript
-import { useCheckIns } from '../lib/checkIns';
-import { useAuthContext } from '../contexts/AuthContext';
+import { useCheckIns } from "../lib/checkIns";
+import { useAuthContext } from "../contexts/AuthContext";
 
 function HomeScreen() {
-  const { userId } = useAuthContext();
-  const { createCheckIn, hasCheckedInToday } = useCheckIns();
-  const hasCheckedIn = hasCheckedInToday(userId);
+	const { userId } = useAuthContext();
+	const { createCheckIn, hasCheckedInToday } = useCheckIns();
+	const hasCheckedIn = hasCheckedInToday(userId);
 
-  const handleCheckIn = async () => {
-    if (!userId || !groupId) return;
-    
-    await createCheckIn({
-      userId,
-      groupId,
-      note: 'Great workout!',
-      photo: 'base64...',
-    });
-  };
+	const handleCheckIn = async () => {
+		if (!userId || !groupId) return;
+
+		await createCheckIn({
+			userId,
+			groupId,
+			note: "Great check-in!",
+			photo: "base64...",
+		});
+	};
 }
 ```
 
 ### Ejemplo: Archivar Grupo
 
 ```typescript
-import { useGroups } from '../lib/groups';
-import { useAuthContext } from '../contexts/AuthContext';
+import { useGroups } from "../lib/groups";
+import { useAuthContext } from "../contexts/AuthContext";
 
 function GroupSettingsScreen() {
-  const { userId } = useAuthContext();
-  const { archiveGroup } = useGroups();
+	const { userId } = useAuthContext();
+	const { archiveGroup } = useGroups();
 
-  const handleArchive = async () => {
-    if (!userId || !groupId) return;
-    
-    await archiveGroup({
-      groupId,
-      userId,
-    });
-  };
+	const handleArchive = async () => {
+		if (!userId || !groupId) return;
+
+		await archiveGroup({
+			groupId,
+			userId,
+		});
+	};
 }
 ```
 
 ## 📝 Próximos Pasos
 
 1. **Inicializar Convex**:
+
    ```bash
    npx convex dev
    ```
@@ -205,8 +209,3 @@ function GroupSettingsScreen() {
 - [Documentación de Convex](https://docs.convex.dev)
 - [Convex con React Native](https://docs.convex.dev/client/react/react-native)
 - [Dashboard de Convex](https://dashboard.convex.dev)
-
-
-
-
-

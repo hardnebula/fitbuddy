@@ -32,7 +32,7 @@ interface CheckInModalProps {
 }
 
 // Stable snap points to prevent re-renders
-const MODAL_SNAP_POINTS = ['90%'];
+const MODAL_SNAP_POINTS = ["90%"];
 
 export function CheckInModal({
 	visible,
@@ -78,9 +78,9 @@ export function CheckInModal({
 			snapPoints={MODAL_SNAP_POINTS}
 			enablePanDownToClose={true}
 		>
-			<KeyboardAvoidingView 
+			<KeyboardAvoidingView
 				style={styles.container}
-				behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+				behavior={Platform.OS === "ios" ? "padding" : undefined}
 				keyboardVerticalOffset={100}
 			>
 				{/* Header */}
@@ -89,7 +89,7 @@ export function CheckInModal({
 						Log Your Activity
 					</Text>
 					<Text style={[styles.subtitle, { color: colors.textTertiary }]}>
-						Share your workout with your groups
+						Share your check-in with your groups
 					</Text>
 				</View>
 
@@ -104,28 +104,56 @@ export function CheckInModal({
 					scrollEnabled={true}
 					keyboardDismissMode="interactive"
 				>
-						{/* Group Selection Section */}
-						{groups.length > 0 && (
-							<View style={styles.section}>
-								<Text style={[styles.sectionLabel, { color: colors.text }]}>
-									Share with
-								</Text>
-								<View style={styles.groupChipsContainer}>
+					{/* Group Selection Section */}
+					{groups.length > 0 && (
+						<View style={styles.section}>
+							<Text style={[styles.sectionLabel, { color: colors.text }]}>
+								Share with
+							</Text>
+							<View style={styles.groupChipsContainer}>
+								<TouchableOpacity
+									onPress={() => form.toggleAllGroups(groups.map((g) => g._id))}
+									style={[
+										styles.groupChip,
+										{
+											backgroundColor:
+												form.selectedGroups.length === groups.length
+													? colors.primary
+													: colors.cardSecondary,
+											borderColor:
+												form.selectedGroups.length === groups.length
+													? colors.primary
+													: colors.border,
+										},
+									]}
+								>
+									<Text
+										style={[
+											styles.groupChipText,
+											{
+												color:
+													form.selectedGroups.length === groups.length
+														? "#FFFFFF"
+														: colors.text,
+											},
+										]}
+									>
+										All
+									</Text>
+								</TouchableOpacity>
+								{groups.map((group) => (
 									<TouchableOpacity
-										onPress={() =>
-											form.toggleAllGroups(groups.map((g) => g._id))
-										}
+										key={group._id}
+										onPress={() => form.toggleGroup(group._id)}
 										style={[
 											styles.groupChip,
 											{
-												backgroundColor:
-													form.selectedGroups.length === groups.length
-														? colors.primary
-														: colors.cardSecondary,
-												borderColor:
-													form.selectedGroups.length === groups.length
-														? colors.primary
-														: colors.border,
+												backgroundColor: form.selectedGroups.includes(group._id)
+													? colors.primary
+													: colors.cardSecondary,
+												borderColor: form.selectedGroups.includes(group._id)
+													? colors.primary
+													: colors.border,
 											},
 										]}
 									>
@@ -133,175 +161,142 @@ export function CheckInModal({
 											style={[
 												styles.groupChipText,
 												{
-													color:
-														form.selectedGroups.length === groups.length
-															? "#FFFFFF"
-															: colors.text,
+													color: form.selectedGroups.includes(group._id)
+														? "#FFFFFF"
+														: colors.text,
 												},
 											]}
 										>
-											All
+											{group.name}
 										</Text>
 									</TouchableOpacity>
-									{groups.map((group) => (
+								))}
+							</View>
+						</View>
+					)}
+
+					{/* Photo Section */}
+					<View style={styles.section}>
+						<Text style={[styles.sectionLabel, { color: colors.text }]}>
+							Photo
+						</Text>
+						{form.photo ? (
+							<View style={styles.photoContainer}>
+								<Image
+									source={{ uri: form.photo }}
+									style={styles.photo}
+									resizeMode="cover"
+								/>
+								<TouchableOpacity
+									onPress={() => {
+										form.setPhoto(null);
+										setShowPhotoOptions(false);
+									}}
+									style={[
+										styles.removePhotoButton,
+										{ backgroundColor: colors.error || "#EF4444" },
+									]}
+								>
+									<Text style={styles.removePhotoText}>Remove Photo</Text>
+								</TouchableOpacity>
+							</View>
+						) : (
+							<View>
+								<TouchableOpacity
+									onPress={() => setShowPhotoOptions(true)}
+									style={[
+										styles.photoButton,
+										{
+											backgroundColor: colors.cardSecondary,
+											borderColor: colors.border,
+										},
+									]}
+								>
+									<Text style={styles.photoButtonIcon}>📷</Text>
+									<Text
+										style={[
+											styles.photoButtonText,
+											{ color: colors.textSecondary },
+										]}
+									>
+										Add Photo
+									</Text>
+								</TouchableOpacity>
+
+								{showPhotoOptions && (
+									<View style={styles.photoOptionsContainer}>
 										<TouchableOpacity
-											key={group._id}
-											onPress={() => form.toggleGroup(group._id)}
+											onPress={async () => {
+												await photoPicker.takePhoto();
+												setShowPhotoOptions(false);
+											}}
 											style={[
-												styles.groupChip,
-												{
-													backgroundColor: form.selectedGroups.includes(
-														group._id
-													)
-														? colors.primary
-														: colors.cardSecondary,
-													borderColor: form.selectedGroups.includes(
-														group._id
-													)
-														? colors.primary
-														: colors.border,
-												},
+												styles.photoOptionButton,
+												{ backgroundColor: colors.primary },
 											]}
 										>
-											<Text
-												style={[
-													styles.groupChipText,
-													{
-														color: form.selectedGroups.includes(group._id)
-															? "#FFFFFF"
-															: colors.text,
-													},
-												]}
-											>
-												{group.name}
-											</Text>
+											<Text style={styles.photoOptionIcon}>📸</Text>
+											<Text style={styles.photoOptionButtonText}>Camera</Text>
 										</TouchableOpacity>
-									))}
-								</View>
+										<TouchableOpacity
+											onPress={async () => {
+												await photoPicker.pickFromLibrary();
+												setShowPhotoOptions(false);
+											}}
+											style={[
+												styles.photoOptionButton,
+												{ backgroundColor: colors.primary },
+											]}
+										>
+											<Text style={styles.photoOptionIcon}>🖼️</Text>
+											<Text style={styles.photoOptionButtonText}>Gallery</Text>
+										</TouchableOpacity>
+									</View>
+								)}
 							</View>
 						)}
+					</View>
 
-						{/* Photo Section */}
-						<View style={styles.section}>
-							<Text style={[styles.sectionLabel, { color: colors.text }]}>
-								Photo
-							</Text>
-							{form.photo ? (
-								<View style={styles.photoContainer}>
-									<Image
-										source={{ uri: form.photo }}
-										style={styles.photo}
-										resizeMode="cover"
-									/>
-									<TouchableOpacity
-										onPress={() => {
-											form.setPhoto(null);
-											setShowPhotoOptions(false);
-										}}
-										style={[
-											styles.removePhotoButton,
-											{ backgroundColor: colors.error || '#EF4444' },
-										]}
-									>
-										<Text style={styles.removePhotoText}>Remove Photo</Text>
-									</TouchableOpacity>
-								</View>
-							) : (
-								<View>
-									<TouchableOpacity
-										onPress={() => setShowPhotoOptions(true)}
-										style={[
-											styles.photoButton,
-											{
-												backgroundColor: colors.cardSecondary,
-												borderColor: colors.border,
-											},
-										]}
-									>
-										<Text style={styles.photoButtonIcon}>📷</Text>
-										<Text
-											style={[
-												styles.photoButtonText,
-												{ color: colors.textSecondary },
-											]}
-										>
-											Add Photo
-										</Text>
-									</TouchableOpacity>
-
-									{showPhotoOptions && (
-										<View style={styles.photoOptionsContainer}>
-											<TouchableOpacity
-												onPress={async () => {
-													await photoPicker.takePhoto();
-													setShowPhotoOptions(false);
-												}}
-												style={[
-													styles.photoOptionButton,
-													{ backgroundColor: colors.primary },
-												]}
-											>
-												<Text style={styles.photoOptionIcon}>📸</Text>
-												<Text style={styles.photoOptionButtonText}>
-													Camera
-												</Text>
-											</TouchableOpacity>
-											<TouchableOpacity
-												onPress={async () => {
-													await photoPicker.pickFromLibrary();
-													setShowPhotoOptions(false);
-												}}
-												style={[
-													styles.photoOptionButton,
-													{ backgroundColor: colors.primary },
-												]}
-											>
-												<Text style={styles.photoOptionIcon}>🖼️</Text>
-												<Text style={styles.photoOptionButtonText}>
-													Gallery
-												</Text>
-											</TouchableOpacity>
-										</View>
-									)}
-								</View>
-							)}
-						</View>
-
-						{/* Note Section */}
-						<View style={styles.section}>
-							<Text style={[styles.sectionLabel, { color: colors.text }]}>
-								Note
-								<Text style={{ color: colors.textTertiary }}> (optional)</Text>
-							</Text>
-							<TextInput
-								ref={noteInputRef}
-								style={[
-									styles.noteInput,
-									{
-										backgroundColor: colors.cardSecondary,
-										borderColor: colors.border,
-										color: colors.text,
-									},
-								]}
-								placeholder="How did your workout go?"
-								placeholderTextColor={colors.textTertiary}
-								value={form.note}
-								onChangeText={form.setNote}
-								onFocus={() => {
-									scrollViewRef.current?.scrollToEnd({ animated: true });
-								}}
-								multiline
-								textAlignVertical="top"
-								blurOnSubmit={false}
-								returnKeyType="default"
-								keyboardType="default"
-								autoCorrect={true}
-								autoCapitalize="sentences"
-							/>
-						</View>
+					{/* Note Section */}
+					<View style={styles.section}>
+						<Text style={[styles.sectionLabel, { color: colors.text }]}>
+							Note
+							<Text style={{ color: colors.textTertiary }}> (optional)</Text>
+						</Text>
+						<TextInput
+							ref={noteInputRef}
+							style={[
+								styles.noteInput,
+								{
+									backgroundColor: colors.cardSecondary,
+									borderColor: colors.border,
+									color: colors.text,
+								},
+							]}
+							placeholder="How did it go?"
+							placeholderTextColor={colors.textTertiary}
+							value={form.note}
+							onChangeText={form.setNote}
+							onFocus={() => {
+								scrollViewRef.current?.scrollToEnd({ animated: true });
+							}}
+							multiline
+							textAlignVertical="top"
+							blurOnSubmit={false}
+							returnKeyType="default"
+							keyboardType="default"
+							autoCorrect={true}
+							autoCapitalize="sentences"
+						/>
+					</View>
 
 					{/* Button inside ScrollView */}
-					<View style={[styles.buttonContainer, { backgroundColor: colors.surface }]}>
+					<View
+						style={[
+							styles.buttonContainer,
+							{ backgroundColor: colors.surface },
+						]}
+					>
 						<Button
 							title="Log Activity"
 							onPress={() => {

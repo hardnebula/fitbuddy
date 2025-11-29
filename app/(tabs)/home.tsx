@@ -340,16 +340,8 @@ export default function HomeScreen() {
 					bounces={true}
 					contentInsetAdjustmentBehavior="automatic"
 				>
-					{/* Streak Hero - Always at the top */}
-					<StreakHero
-						streak={
-							userId ? user?.currentStreak || 0 : localStats.currentStreak
-						}
-						bestStreak={userId ? user?.bestStreak : localStats.bestStreak}
-					/>
-
-					{/* Header - only show if user has groups */}
-					{hasGroups && selectedGroup && (
+					{/* Header - show if user has groups (even in personal mode) - Moved to top */}
+					{hasGroups && (
 						<GroupHeader
 							group={selectedGroup}
 							memberCount={memberCount}
@@ -357,6 +349,14 @@ export default function HomeScreen() {
 							onMenuPress={() => setShowGroupSelector(true)}
 						/>
 					)}
+
+					{/* Streak Hero */}
+					<StreakHero
+						streak={
+							userId ? user?.currentStreak || 0 : localStats.currentStreak
+						}
+						bestStreak={userId ? user?.bestStreak : localStats.bestStreak}
+					/>
 
 					{/* Hero Card */}
 					<HeroCard

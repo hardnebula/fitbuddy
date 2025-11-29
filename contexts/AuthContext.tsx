@@ -25,7 +25,7 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const USER_ID_KEY = "@fitbuddy:userId";
+const USER_ID_KEY = "@teo:userId";
 
 export function AuthProvider({ children }: { children: ReactNode }) {
 	const [userId, setUserId] = useState<Id<"users"> | null>(null);

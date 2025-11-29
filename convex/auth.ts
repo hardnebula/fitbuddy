@@ -20,7 +20,7 @@ export const createAuth = (
 
 	// Build base trustedOrigins array
 	const baseOrigins = [
-		"fitbuddy://",
+		"teo://",
 		"https://appleid.apple.com", // Required for Apple Sign In
 	];
 

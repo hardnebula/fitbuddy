@@ -1,535 +1,1286 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useEffect } from "react";
 import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  Image,
-  Alert,
-  StatusBar,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import * as ImagePicker from 'expo-image-picker';
-import Svg, { Path } from 'react-native-svg';
-import { LinearGradient } from 'expo-linear-gradient';
-import { ScreenTransition } from '../../components/ScreenTransition';
-import { AnimatedTitle } from '../../components/AnimatedTitle';
-import { BadgeCard } from '../../components/BadgeCard';
-import { Theme } from '../../constants/Theme';
-import { useTheme } from '../../contexts/ThemeContext';
+	View,
+	Text,
+	StyleSheet,
+	ScrollView,
+	TouchableOpacity,
+	Image,
+	Alert,
+	StatusBar,
+	Platform,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import * as ImagePicker from "expo-image-picker";
+import Svg, { Path } from "react-native-svg";
+import { LinearGradient } from "expo-linear-gradient";
+import { useRouter } from "expo-router";
+import { ScreenTransition } from "@/components/ScreenTransition";
+import { AnimatedTitle } from "@/components/AnimatedTitle";
+import { BadgeCard } from "@/components/BadgeCard";
+import { Button as AppButton } from "@/components/Button";
+import SquircleView from "@/components/SquircleView";
+import { BottomSheet } from "@/components/BottomSheet";
+import { BlurView } from "expo-blur";
+import Constants from "expo-constants";
+import { Theme } from "@/constants/Theme";
+import { useTheme } from "@/contexts/ThemeContext";
+import { useAuthContext } from "@/contexts/AuthContext";
+import { useUserStats, useCheckInsByDateRange } from "@/lib/checkIns";
+
+// Check if we're in Expo Go (where custom native modules don't work)
+// Expo Go has executionEnvironment === 'storeClient'
+const isExpoGo = Constants.executionEnvironment === "storeClient";
+
+// Type definitions for Swift UI components
+// Based on @expo/ui/swift-ui package structure
+type SwiftUIContextMenuProps = {
+	children: React.ReactNode;
+};
+
+type SwiftUIContextMenuItemsProps = {
+	children: React.ReactNode;
+};
+
+type SwiftUIContextMenuTriggerProps = {
+	children: React.ReactNode;
+};
+
+type SwiftUIContextMenuComponent =
+	React.ComponentType<SwiftUIContextMenuProps> & {
+		Items: React.ComponentType<SwiftUIContextMenuItemsProps>;
+		Trigger: React.ComponentType<SwiftUIContextMenuTriggerProps>;
+	};
+
+type SwiftUIHostProps = {
+	style?: React.ComponentProps<typeof View>["style"];
+	children?: React.ReactNode;
+};
+
+type SwiftUIButtonProps = {
+	systemImage?: string;
+	onPress?: () => void;
+	children?: React.ReactNode;
+};
+
+type SwiftUIComponents = {
+	ContextMenu: SwiftUIContextMenuComponent;
+	Host: React.ComponentType<SwiftUIHostProps>;
+	Button: React.ComponentType<SwiftUIButtonProps>;
+};
+
+// Type definitions for Jetpack Compose components
+// Based on @expo/ui/jetpack-compose package structure
+type JetpackComposeContextMenuProps = {
+	children: React.ReactNode;
+};
+
+type JetpackComposeContextMenuItemsProps = {
+	children: React.ReactNode;
+};
+
+type JetpackComposeContextMenuTriggerProps = {
+	children: React.ReactNode;
+};
+
+type JetpackComposeContextMenuComponent =
+	React.ComponentType<JetpackComposeContextMenuProps> & {
+		Items: React.ComponentType<JetpackComposeContextMenuItemsProps>;
+		Trigger: React.ComponentType<JetpackComposeContextMenuTriggerProps>;
+	};
+
+type JetpackComposeHostProps = {
+	style?: React.ComponentProps<typeof View>["style"];
+	children?: React.ReactNode;
+};
+
+type JetpackComposeButtonProps = {
+	variant?: "bordered" | "filled" | "tonal" | "text";
+	onPress?: () => void;
+	children?: React.ReactNode;
+};
+
+type JetpackComposeComponents = {
+	ContextMenu: JetpackComposeContextMenuComponent;
+	Host: React.ComponentType<JetpackComposeHostProps>;
+	Button: React.ComponentType<JetpackComposeButtonProps>;
+};
+
+// Lazy-loaded native UI components
+// These are loaded conditionally at runtime to avoid errors in Expo Go
+let swiftUIComponents: SwiftUIComponents | null = null;
+let jetpackComposeComponents: JetpackComposeComponents | null = null;
+
+/**
+ * Attempts to load Swift UI components for iOS.
+ * Only loads if not in Expo Go and on iOS platform.
+ * @returns Swift UI components module or null if unavailable
+ */
+function loadSwiftUIComponents(): SwiftUIComponents | null {
+	if (isExpoGo || Platform.OS !== "ios") {
+		return null;
+	}
+
+	if (swiftUIComponents) {
+		return swiftUIComponents;
+	}
+
+	try {
+		const swiftUI = require("@expo/ui/swift-ui");
+		swiftUIComponents = {
+			ContextMenu: swiftUI.ContextMenu,
+			Host: swiftUI.Host,
+			Button: swiftUI.Button,
+		};
+		return swiftUIComponents;
+	} catch (e) {
+		console.warn("Swift UI not available:", e);
+		return null;
+	}
+}
+
+/**
+ * Attempts to load Jetpack Compose components for Android.
+ * Only loads if not in Expo Go and on Android platform.
+ * @returns Jetpack Compose components module or null if unavailable
+ */
+function loadJetpackComposeComponents(): JetpackComposeComponents | null {
+	if (isExpoGo || Platform.OS !== "android") {
+		return null;
+	}
+
+	if (jetpackComposeComponents) {
+		return jetpackComposeComponents;
+	}
+
+	try {
+		const jetpackCompose = require("@expo/ui/jetpack-compose");
+		jetpackComposeComponents = {
+			ContextMenu: jetpackCompose.ContextMenu,
+			Host: jetpackCompose.Host,
+			Button: jetpackCompose.Button,
+		};
+		return jetpackComposeComponents;
+	} catch (e) {
+		console.warn("Jetpack Compose UI not available:", e);
+		return null;
+	}
+}
 
 export default function ProfileScreen() {
-  const { colors, isDark, setTheme } = useTheme();
-  const [userName] = useState('Luna');
-  const [userPhoto, setUserPhoto] = useState<string | null>(null);
-  const [currentStreak] = useState(15);
-  const [bestStreak] = useState(45);
-  const [totalCheckIns] = useState(127);
-  const [selectedBadge, setSelectedBadge] = useState<any>(null);
+	const { colors, isDark, setTheme } = useTheme();
+	const router = useRouter();
+	const { userId, user } = useAuthContext();
+	const [userPhoto, setUserPhoto] = useState<string | null>(null);
+	const [selectedBadge, setSelectedBadge] = useState<any>(null);
+	const [showMenuSheet, setShowMenuSheet] = useState(false);
 
-  // Mock calendar data - días del mes actual
-  const generateCalendarDays = () => {
-    const days = [];
-    const today = new Date();
-    const currentMonth = today.getMonth();
-    const currentYear = today.getFullYear();
-    const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
-    
-    // Días con check-in (simulado)
-    const checkInDays = [1, 2, 3, 5, 6, 7, 8, 9, 10, 12, 13, 14, 15, 16, 17, 19, 20, 21, 22, 23];
-    
-    for (let i = 1; i <= daysInMonth; i++) {
-      days.push({
-        day: i,
-        hasCheckIn: checkInDays.includes(i),
-        isToday: i === today.getDate(),
-      });
-    }
-    return days;
-  };
+	// Initialize user photo from user object if available
+	useEffect(() => {
+		if (user?.avatar && !userPhoto) {
+			setUserPhoto(user.avatar);
+		}
+	}, [user?.avatar, userPhoto]);
 
-  const calendarDays = generateCalendarDays();
+	// Fetch user stats from Convex
+	const userStats = useUserStats(userId);
 
-  // Badges del usuario
-  const badges = [
-    { 
-      id: '1', 
-      name: '7 Day Streak', 
-      description: 'Completed 7 consecutive days of check-ins. Keep the fire burning!',
-      image: require('../../assets/images/Badges/7 day streak.png'),
-      earnedDate: new Date(2024, 10, 15),
-      rarity: 'rare' as const,
-    },
-    { 
-      id: '2', 
-      name: '30 Day Streak', 
-      description: 'Achieved 30 consecutive days of check-ins. You\'re unstoppable!',
-      image: require('../../assets/images/Badges/30 day streak.png'),
-      earnedDate: new Date(2024, 10, 20),
-      rarity: 'epic' as const,
-    },
-    { 
-      id: '3', 
-      name: '100 Check-ins', 
-      description: 'Reached 100 total check-ins. A true dedication!',
-      image: require('../../assets/images/Badges/100 Check in.png'),
-      earnedDate: new Date(2024, 9, 10),
-      rarity: 'epic' as const,
-    },
-    { 
-      id: '4', 
-      name: 'Legendary Badge', 
-      description: 'Achieved legendary status. You\'re a true champion!',
-      image: require('../../assets/images/Badges/Legendary badge.png'),
-      earnedDate: new Date(2024, 8, 5),
-      rarity: 'legendary' as const,
-    },
-  ];
+	// Calculate date range for last 12 weeks (84 days)
+	const dateRange = useMemo(() => {
+		const today = new Date();
+		today.setHours(0, 0, 0, 0);
+		const endDate = today.getTime();
+		const startDate = new Date(today);
+		startDate.setDate(startDate.getDate() - 84); // 12 weeks = 84 days
+		startDate.setHours(0, 0, 0, 0);
+		return {
+			startDate: startDate.getTime(),
+			endDate: endDate + 86400000 - 1, // End of today
+		};
+	}, []);
 
-  const handleChangePhoto = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    
-    if (status !== 'granted') {
-      Alert.alert('Permission needed', 'Please grant camera roll permissions');
-      return;
-    }
+	// Fetch check-ins for the last 12 weeks (only if logged in)
+	const checkInsData = useCheckInsByDateRange(
+		userId,
+		null, // No group filter for profile
+		dateRange.startDate,
+		dateRange.endDate
+	);
 
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 1,
-    });
+	// Get user stats with fallbacks
+	const currentStreak = userStats?.currentStreak ?? 0;
+	const bestStreak = userStats?.bestStreak ?? 0;
+	const totalCheckIns = userStats?.totalCheckIns ?? 0;
+	const userName = user?.name ?? "User";
 
-    if (!result.canceled) {
-      setUserPhoto(result.assets[0].uri);
-    }
-  };
+	// Shared Gradient Colors matching Home/Streak cards
+	const cardGradientColors = isDark
+		? (["rgba(139, 92, 246, 0.25)", "rgba(139, 92, 246, 0.1)"] as const)
+		: (["rgba(139, 92, 246, 0.2)", "rgba(139, 92, 246, 0.05)"] as const);
 
-  const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December'];
-  const currentMonth = monthNames[new Date().getMonth()];
+	const cardStyle = {
+		borderRadius: 24,
+		borderColor: colors.primary,
+		borderWidth: 1.5,
+		shadowColor: "#8B5CF6",
+		shadowOffset: { width: 0, height: 0 },
+		shadowOpacity: 0.3,
+		shadowRadius: 15,
+		elevation: 8,
+	};
 
-  return (
-    <ScreenTransition>
-      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
-      <SafeAreaView 
-        style={[styles.container, { backgroundColor: colors.background }]}
-        edges={['top']}
-      >
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-        bounces={false}
-        scrollEnabled={true}
-      >
-        {/* Header with Theme Toggle */}
-        <View style={styles.headerContainer}>
-          <AnimatedTitle style={StyleSheet.flatten([styles.title, { color: colors.text }])}>Profile</AnimatedTitle>
-          <TouchableOpacity 
-            onPress={() => setTheme(isDark ? 'light' : 'dark')}
-            style={[styles.themeToggle, { backgroundColor: colors.cardSecondary }]}
-            activeOpacity={0.7}
-          >
-            <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
-              {isDark ? (
-                // Sun icon for light mode
-                <Path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={1.5}
-                  stroke={colors.text}
-                  d="M12 3v2.25m6.364.386-1.591 1.591M21 12h-2.25m-.386 6.364-1.591-1.591M12 18.75V21m-4.773-4.227-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0Z"
-                />
-              ) : (
-                // Moon icon for dark mode
-                <Path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={1.5}
-                  stroke={colors.text}
-                  d="M21.752 15.002A9.72 9.72 0 0 1 18 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 0 0 3 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 0 0 9.002-5.998Z"
-                />
-              )}
-            </Svg>
-          </TouchableOpacity>
-        </View>
+	// Generate GitHub-style contribution graph from real check-in data
+	const contributionWeeks = useMemo(() => {
+		const weeks: Array<Array<{ intensity: number; date: Date }>> = [];
+		const today = new Date();
+		today.setHours(0, 0, 0, 0);
 
-        {/* Avatar */}
-        <TouchableOpacity style={styles.avatarContainer} onPress={handleChangePhoto}>
-          <View style={[styles.avatar, { backgroundColor: colors.primary }]}>
-            {userPhoto ? (
-              <Image source={{ uri: userPhoto }} style={styles.avatarImage} />
-            ) : (
-              <Text style={styles.avatarEmoji}>👤</Text>
-            )}
-          </View>
-          <Text style={[styles.changePhotoText, { color: colors.primary }]}>Change Photo</Text>
-        </TouchableOpacity>
+		// Create a map of check-ins by date (day key)
+		const checkInsByDay = new Map<number, number>();
+		if (checkInsData) {
+			checkInsData.forEach((checkIn) => {
+				const checkInDate = new Date(checkIn.timestamp);
+				checkInDate.setHours(0, 0, 0, 0);
+				const dayKey = checkInDate.getTime();
+				checkInsByDay.set(dayKey, (checkInsByDay.get(dayKey) || 0) + 1);
+			});
+		}
 
-        <Text style={[styles.userName, { color: colors.text }]}>{userName}</Text>
+		// Generate 12 weeks of data (7 days per week)
+		for (let week = 0; week < 12; week++) {
+			const weekData: Array<{ intensity: number; date: Date }> = [];
+			for (let day = 0; day < 7; day++) {
+				const date = new Date(today);
+				date.setDate(date.getDate() - (week * 7 + (6 - day)));
+				date.setHours(0, 0, 0, 0);
+				const dayKey = date.getTime();
 
-        {/* Stats Cards */}
-        <View style={styles.statsContainer}>
-          <View style={[styles.statCard, { backgroundColor: colors.cardSecondary }]}>
-            <Text style={[styles.statValue, { color: colors.primary }]}>{currentStreak}</Text>
-            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Current Streak</Text>
-            <Text style={styles.statEmoji}>🔥</Text>
-          </View>
-          <View style={[styles.statCard, { backgroundColor: colors.cardSecondary }]}>
-            <Text style={[styles.statValue, { color: colors.primary }]}>{bestStreak}</Text>
-            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Best Streak</Text>
-            <Text style={styles.statEmoji}>⚡</Text>
-          </View>
-          <View style={[styles.statCard, { backgroundColor: colors.cardSecondary }]}>
-            <Text style={[styles.statValue, { color: colors.primary }]}>{totalCheckIns}</Text>
-            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Total Check-ins</Text>
-            <Text style={styles.statEmoji}>✅</Text>
-          </View>
-        </View>
+				// Get check-in count for this day
+				const checkInCount = checkInsByDay.get(dayKey) || 0;
 
-        {/* Calendar Section */}
-        <AnimatedTitle style={StyleSheet.flatten([styles.sectionTitle, { color: colors.text }])}>{currentMonth} Activity</AnimatedTitle>
-        <View style={[styles.calendarCard, { backgroundColor: colors.cardSecondary }]}>
-          <View style={styles.calendarGrid}>
-            {calendarDays.map((day) => (
-              <View
-                key={day.day}
-                style={[
-                  styles.calendarDay,
-                  { backgroundColor: colors.surface },
-                  day.hasCheckIn && { backgroundColor: colors.primary },
-                  day.isToday && { borderWidth: 2, borderColor: colors.primary },
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.calendarDayText,
-                    { color: colors.textTertiary },
-                    day.hasCheckIn && { color: '#FFFFFF', fontWeight: Theme.typography.fontWeight.bold },
-                    day.isToday && { color: colors.primary, fontWeight: Theme.typography.fontWeight.bold },
-                  ]}
-                >
-                  {day.day}
-                </Text>
-              </View>
-            ))}
-          </View>
-        </View>
+				// Map check-in count to intensity (0-4)
+				// 0 = no check-ins, 1 = 1 check-in, 2 = 2 check-ins, 3 = 3 check-ins, 4 = 4+ check-ins
+				const intensity = Math.min(checkInCount, 4);
 
-        {/* Badges Section */}
-        <AnimatedTitle style={StyleSheet.flatten([styles.sectionTitle, { color: colors.text }])}>Achievements</AnimatedTitle>
-        <View style={styles.badgesContainer}>
-          {badges.map((badge) => {
-            const rarityColors = {
-              common: ['#94A3B8', '#64748B'],
-              rare: ['#3B82F6', '#2563EB'],
-              epic: ['#A855F7', '#7C3AED'],
-              legendary: ['#F59E0B', '#D97706'],
-            };
-            const rarityGlow = {
-              common: 'rgba(148, 163, 184, 0.3)',
-              rare: 'rgba(59, 130, 246, 0.4)',
-              epic: 'rgba(168, 85, 247, 0.5)',
-              legendary: 'rgba(245, 158, 11, 0.6)',
-            };
-            
-            return (
-              <TouchableOpacity 
-                key={badge.id} 
-                style={styles.badgeCardWrapper}
-                onPress={() => setSelectedBadge(badge)}
-                activeOpacity={0.8}
-              >
-                <View 
-                  style={[
-                    styles.badgeCard, 
-                    { 
-                      shadowColor: rarityGlow[badge.rarity],
-                      backgroundColor: colors.cardSecondary,
-                    }
-                  ]}
-                >
-                  {/* Rarity gradient background */}
-                  <LinearGradient
-                    colors={rarityColors[badge.rarity]}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={styles.badgeGradient}
-                  />
-                  
-                  {/* Badge Image with white border */}
-                  <View style={styles.badgeImageContainer}>
-                    <View style={styles.badgeImageWhiteBackground} />
-                    <Image 
-                      source={badge.image} 
-                      style={styles.badgeImage}
-                      resizeMode="contain"
-                    />
-                  </View>
-                  
-                  {/* Badge Info */}
-                  <View style={styles.badgeInfo}>
-                    <Text style={[styles.badgeName, { color: colors.text }]} numberOfLines={2}>
-                      {badge.name}
-                    </Text>
-                    <View style={[styles.rarityBadge, { 
-                      backgroundColor: badge.rarity === 'legendary' ? '#F59E0B' : 
-                                       badge.rarity === 'epic' ? '#A855F7' : 
-                                       badge.rarity === 'rare' ? '#3B82F6' : '#94A3B8'
-                    }]}>
-                      <Text style={styles.rarityText}>{badge.rarity.toUpperCase()}</Text>
-                    </View>
-                  </View>
-                </View>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
+				weekData.push({
+					intensity,
+					date,
+				});
+			}
+			weeks.push(weekData);
+		}
 
-        {/* Badge Card Modal */}
-        {selectedBadge && (
-          <BadgeCard
-            visible={!!selectedBadge}
-            onClose={() => setSelectedBadge(null)}
-            badge={selectedBadge}
-          />
-        )}
-      </ScrollView>
-    </SafeAreaView>
-    </ScreenTransition>
-  );
+		return weeks;
+	}, [checkInsData]);
+
+	// Calculate badges dynamically based on user stats
+	const badges = useMemo(() => {
+		if (!userStats) return [];
+
+		const earnedBadges: Array<{
+			id: string;
+			name: string;
+			description: string;
+			image: any;
+			earnedDate: Date;
+			rarity: "common" | "rare" | "epic" | "legendary";
+		}> = [];
+
+		// 7 Day Streak badge
+		if (userStats.bestStreak >= 7) {
+			// Estimate earned date: today minus (bestStreak - 7) days
+			const estimatedEarnedDate = new Date();
+			estimatedEarnedDate.setDate(
+				estimatedEarnedDate.getDate() - (userStats.bestStreak - 7)
+			);
+			earnedBadges.push({
+				id: "7-day-streak",
+				name: "7 Day Streak",
+				description:
+					"Completed 7 consecutive days of check-ins. Keep the fire burning!",
+				image: require("@/assets/images/Badges/7 day streak.png"),
+				earnedDate: estimatedEarnedDate,
+				rarity: "rare" as const,
+			});
+		}
+
+		// 30 Day Streak badge
+		if (userStats.bestStreak >= 30) {
+			const estimatedEarnedDate = new Date();
+			estimatedEarnedDate.setDate(
+				estimatedEarnedDate.getDate() - (userStats.bestStreak - 30)
+			);
+			earnedBadges.push({
+				id: "30-day-streak",
+				name: "30 Day Streak",
+				description:
+					"Achieved 30 consecutive days of check-ins. You're unstoppable!",
+				image: require("@/assets/images/Badges/30 day streak.png"),
+				earnedDate: estimatedEarnedDate,
+				rarity: "epic" as const,
+			});
+		}
+
+		// 100 Check-ins badge
+		if (userStats.totalCheckIns >= 100) {
+			// Estimate: assume user started earning check-ins from createdAt
+			const estimatedEarnedDate = user?.createdAt
+				? new Date(
+						user.createdAt +
+							(100 / userStats.totalCheckIns) * (Date.now() - user.createdAt)
+					)
+				: new Date();
+			earnedBadges.push({
+				id: "100-checkins",
+				name: "100 Check-ins",
+				description: "Reached 100 total check-ins. A true dedication!",
+				image: require("@/assets/images/Badges/100 Check in.png"),
+				earnedDate: estimatedEarnedDate,
+				rarity: "epic" as const,
+			});
+		}
+
+		// Legendary Badge (for exceptional achievements)
+		if (userStats.bestStreak >= 100 || userStats.totalCheckIns >= 500) {
+			const estimatedEarnedDate = new Date();
+			if (userStats.bestStreak >= 100) {
+				estimatedEarnedDate.setDate(
+					estimatedEarnedDate.getDate() - (userStats.bestStreak - 100)
+				);
+			} else if (user?.createdAt) {
+				estimatedEarnedDate.setTime(
+					user.createdAt +
+						(500 / userStats.totalCheckIns) * (Date.now() - user.createdAt)
+				);
+			}
+			earnedBadges.push({
+				id: "legendary",
+				name: "Legendary Badge",
+				description: "Achieved legendary status. You're a true champion!",
+				image: require("@/assets/images/Badges/Legendary badge.png"),
+				earnedDate: estimatedEarnedDate,
+				rarity: "legendary" as const,
+			});
+		}
+
+		// Sort badges by earned date (most recent first)
+		return earnedBadges.sort(
+			(a, b) => b.earnedDate.getTime() - a.earnedDate.getTime()
+		);
+	}, [userStats, user?.createdAt]);
+
+	const handleChangePhoto = async () => {
+		const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+		if (status !== "granted") {
+			Alert.alert("Permission needed", "Please grant camera roll permissions");
+			return;
+		}
+
+		const result = await ImagePicker.launchImageLibraryAsync({
+			mediaTypes: ImagePicker.MediaTypeOptions.Images,
+			allowsEditing: true,
+			aspect: [1, 1],
+			quality: 1,
+		});
+
+		if (!result.canceled) {
+			setUserPhoto(result.assets[0].uri);
+		}
+	};
+
+	const handleSettingsPress = () => {
+		setShowMenuSheet(false);
+		router.push("/(tabs)/settings");
+	};
+
+	const handleBillingPress = () => {
+		setShowMenuSheet(false);
+		Alert.alert("Billing", "Billing management coming soon");
+	};
+
+	const handleThemeToggle = () => {
+		setShowMenuSheet(false);
+		setTheme(isDark ? "light" : "dark");
+	};
+
+	// Render context menu based on platform
+	const renderContextMenu = () => {
+		const cogIcon = (
+			<View style={styles.cogButtonContainer}>
+				{/* Liquid glass blur effect - iOS/Android only, NOT in Expo Go */}
+				{!isExpoGo && (Platform.OS === "ios" || Platform.OS === "android") ? (
+					<BlurView
+						intensity={Platform.OS === "ios" ? 80 : 50}
+						tint={isDark ? "dark" : "light"}
+						style={styles.cogBlur}
+					/>
+				) : (
+					/* Fallback background for Expo Go, web, and unsupported platforms */
+					<View
+						style={[
+							styles.cogBlur,
+							{
+								backgroundColor: isDark
+									? "rgba(255, 255, 255, 0.1)"
+									: "rgba(255, 255, 255, 0.7)",
+							},
+						]}
+					/>
+				)}
+				{/* Border for depth */}
+				<View
+					style={[
+						styles.cogBorder,
+						{
+							borderColor: isDark
+								? "rgba(255, 255, 255, 0.15)"
+								: "rgba(0, 0, 0, 0.1)",
+						},
+					]}
+				/>
+				{/* Icon */}
+				<View style={styles.cogIconContainer}>
+					<Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
+						<Path
+							strokeLinecap="round"
+							strokeLinejoin="round"
+							strokeWidth={1.5}
+							stroke={colors.text}
+							d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 0 1 0 .255c.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 0 1 0-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281Z"
+						/>
+						<Path
+							strokeLinecap="round"
+							strokeLinejoin="round"
+							strokeWidth={1.5}
+							stroke={colors.text}
+							d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"
+						/>
+					</Svg>
+				</View>
+			</View>
+		);
+
+		// iOS: Use Swift UI ContextMenu (only if available and NOT in Expo Go)
+		const swiftUI = loadSwiftUIComponents();
+		if (swiftUI) {
+			const { ContextMenu, Host, Button } = swiftUI;
+			return (
+				<Host style={styles.contextMenuHost}>
+					<ContextMenu>
+						<ContextMenu.Items>
+							<Button systemImage="gearshape" onPress={handleSettingsPress}>
+								Settings
+							</Button>
+							<Button systemImage="creditcard" onPress={handleBillingPress}>
+								Billing
+							</Button>
+							<Button
+								systemImage={isDark ? "sun.max" : "moon"}
+								onPress={handleThemeToggle}
+							>
+								{isDark ? "Light Mode" : "Dark Mode"}
+							</Button>
+						</ContextMenu.Items>
+						<ContextMenu.Trigger>{cogIcon}</ContextMenu.Trigger>
+					</ContextMenu>
+				</Host>
+			);
+		}
+
+		// Android: Use Jetpack Compose ContextMenu (only if available and NOT in Expo Go)
+		const jetpackCompose = loadJetpackComposeComponents();
+		if (jetpackCompose) {
+			const { ContextMenu, Host, Button } = jetpackCompose;
+			return (
+				<Host style={styles.contextMenuHost}>
+					<ContextMenu>
+						<ContextMenu.Items>
+							<Button onPress={handleSettingsPress}>Settings</Button>
+							<Button variant="bordered" onPress={handleBillingPress}>
+								Billing
+							</Button>
+							<Button onPress={handleThemeToggle}>
+								{isDark ? "Light Mode" : "Dark Mode"}
+							</Button>
+						</ContextMenu.Items>
+						<ContextMenu.Trigger>{cogIcon}</ContextMenu.Trigger>
+					</ContextMenu>
+				</Host>
+			);
+		}
+
+		// Fallback: Use TouchableOpacity with BottomSheet (for Expo Go and web)
+		return (
+			<>
+				<TouchableOpacity
+					onPress={() => setShowMenuSheet(true)}
+					activeOpacity={0.7}
+				>
+					{cogIcon}
+				</TouchableOpacity>
+				<BottomSheet
+					visible={showMenuSheet}
+					onClose={() => setShowMenuSheet(false)}
+					snapPoints={["30%"]}
+				>
+					<View style={styles.menuSheetContent}>
+						<TouchableOpacity
+							style={[styles.menuItem, { borderBottomColor: colors.border }]}
+							onPress={handleSettingsPress}
+							activeOpacity={0.7}
+						>
+							<Text style={[styles.menuItemText, { color: colors.text }]}>
+								Settings
+							</Text>
+						</TouchableOpacity>
+						<TouchableOpacity
+							style={[styles.menuItem, { borderBottomColor: colors.border }]}
+							onPress={handleBillingPress}
+							activeOpacity={0.7}
+						>
+							<Text style={[styles.menuItemText, { color: colors.text }]}>
+								Billing
+							</Text>
+						</TouchableOpacity>
+						<TouchableOpacity
+							style={styles.menuItem}
+							onPress={handleThemeToggle}
+							activeOpacity={0.7}
+						>
+							<Text style={[styles.menuItemText, { color: colors.text }]}>
+								{isDark ? "Light Mode" : "Dark Mode"}
+							</Text>
+						</TouchableOpacity>
+					</View>
+				</BottomSheet>
+			</>
+		);
+	};
+
+	// Get intensity color based on level (0-4)
+	const getIntensityColor = (intensity: number) => {
+		if (intensity === 0) return colors.surface;
+		if (intensity === 1)
+			return isDark ? "rgba(139, 92, 246, 0.2)" : "rgba(139, 92, 246, 0.15)";
+		if (intensity === 2)
+			return isDark ? "rgba(139, 92, 246, 0.4)" : "rgba(139, 92, 246, 0.3)";
+		if (intensity === 3)
+			return isDark ? "rgba(139, 92, 246, 0.6)" : "rgba(139, 92, 246, 0.5)";
+		return colors.primary; // intensity === 4
+	};
+
+	return (
+		<ScreenTransition>
+			<StatusBar barStyle={isDark ? "light-content" : "dark-content"} />
+			<SafeAreaView
+				style={[styles.container, { backgroundColor: colors.background }]}
+				edges={["top"]}
+			>
+				<ScrollView
+					style={styles.scrollView}
+					contentContainerStyle={styles.scrollContent}
+					showsVerticalScrollIndicator={false}
+					bounces={true}
+				>
+					{/* Header */}
+					<View style={styles.headerContainer}>
+						<AnimatedTitle
+							style={StyleSheet.flatten([styles.title, { color: colors.text }])}
+						>
+							Profile
+						</AnimatedTitle>
+						{userId && renderContextMenu()}
+					</View>
+
+					{/* Sign In Prompt Card - Show when not logged in */}
+					{!userId && (
+						<SquircleView
+							style={[styles.profileCard, cardStyle]}
+							cornerSmoothing={1}
+						>
+							<LinearGradient
+								colors={cardGradientColors as any}
+								start={{ x: 0, y: 0 }}
+								end={{ x: 1, y: 1 }}
+								style={styles.signInCardContent}
+							>
+								<View style={styles.signInIconContainer}>
+									<Text style={styles.signInEmoji}>🔐</Text>
+								</View>
+								<Text style={[styles.signInTitle, { color: colors.text }]}>
+									Sign In to Save & Sync
+								</Text>
+								<Text
+									style={[
+										styles.signInSubtitle,
+										{ color: colors.textSecondary },
+									]}
+								>
+									Sign in to sync your check-ins across devices and never lose
+									your progress
+								</Text>
+								<View style={styles.signInButtonContainer}>
+									<AppButton
+										title="Sign In"
+										onPress={() => router.push("/(auth)/sign-in")}
+										fullWidth
+										size="large"
+									/>
+								</View>
+							</LinearGradient>
+						</SquircleView>
+					)}
+
+					{/* Profile Header Card - Styled like StreakHero - Only show when logged in */}
+					{userId && (
+						<>
+							<SquircleView
+								style={[styles.profileCard, cardStyle]}
+								cornerSmoothing={1}
+							>
+								<LinearGradient
+									colors={cardGradientColors as any}
+									start={{ x: 0, y: 0 }}
+									end={{ x: 1, y: 1 }}
+									style={styles.profileGradient}
+								>
+									<TouchableOpacity
+										onPress={handleChangePhoto}
+										style={styles.avatarWrapper}
+									>
+										<View
+											style={[
+												styles.avatar,
+												{ backgroundColor: colors.primary },
+											]}
+										>
+											{userPhoto ? (
+												<Image
+													source={{ uri: userPhoto }}
+													style={styles.avatarImage}
+												/>
+											) : (
+												<Text style={styles.avatarEmoji}>👤</Text>
+											)}
+										</View>
+										<View
+											style={[
+												styles.editBadge,
+												{ backgroundColor: colors.card },
+											]}
+										>
+											<Svg
+												width={12}
+												height={12}
+												viewBox="0 0 24 24"
+												fill="none"
+												stroke={colors.primary}
+												strokeWidth={2}
+											>
+												<Path
+													d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10"
+													strokeLinecap="round"
+													strokeLinejoin="round"
+												/>
+											</Svg>
+										</View>
+									</TouchableOpacity>
+
+									<View style={styles.userInfo}>
+										<Text style={[styles.userName, { color: colors.text }]}>
+											{userName}
+										</Text>
+										<Text
+											style={[
+												styles.userSubtitle,
+												{ color: colors.textSecondary },
+											]}
+										>
+											{user?.createdAt
+												? `Member since ${new Date(
+														user.createdAt
+													).toLocaleDateString("en-US", {
+														month: "long",
+														year: "numeric",
+													})}`
+												: "Member"}
+										</Text>
+									</View>
+								</LinearGradient>
+							</SquircleView>
+
+							{/* Stats Row - Consolidated into one card like StreakSection */}
+							<SquircleView
+								style={[styles.statsContainer, cardStyle]}
+								cornerSmoothing={1}
+							>
+								<LinearGradient
+									colors={cardGradientColors as any}
+									start={{ x: 0, y: 0 }}
+									end={{ x: 1, y: 1 }}
+									style={styles.statsGradient}
+								>
+									<View style={styles.statItem}>
+										<Text style={styles.statEmoji}>🔥</Text>
+										<Text style={[styles.statValue, { color: colors.primary }]}>
+											{currentStreak}
+										</Text>
+										<Text
+											style={[
+												styles.statLabel,
+												{ color: colors.textSecondary },
+											]}
+										>
+											Current Streak
+										</Text>
+									</View>
+
+									<View
+										style={[
+											styles.verticalDivider,
+											{
+												backgroundColor: isDark
+													? "rgba(255,255,255,0.1)"
+													: "rgba(0,0,0,0.05)",
+											},
+										]}
+									/>
+
+									<View style={styles.statItem}>
+										<Text style={styles.statEmoji}>✅</Text>
+										<Text style={[styles.statValue, { color: colors.text }]}>
+											{totalCheckIns}
+										</Text>
+										<Text
+											style={[
+												styles.statLabel,
+												{ color: colors.textSecondary },
+											]}
+										>
+											Total Check-ins
+										</Text>
+									</View>
+
+									<View
+										style={[
+											styles.verticalDivider,
+											{
+												backgroundColor: isDark
+													? "rgba(255,255,255,0.1)"
+													: "rgba(0,0,0,0.05)",
+											},
+										]}
+									/>
+
+									<View style={styles.statItem}>
+										<Text style={styles.statEmoji}>⚡</Text>
+										<Text style={[styles.statValue, { color: colors.text }]}>
+											{bestStreak}
+										</Text>
+										<Text
+											style={[
+												styles.statLabel,
+												{ color: colors.textSecondary },
+											]}
+										>
+											Best Streak
+										</Text>
+									</View>
+								</LinearGradient>
+							</SquircleView>
+
+							{/* Activity Graph Section - GitHub Style */}
+							<View style={styles.sectionContainer}>
+								<View style={styles.sectionHeader}>
+									<Text style={[styles.sectionTitle, { color: colors.text }]}>
+										Activity Overview
+									</Text>
+									<Text
+										style={[
+											styles.sectionSubtitle,
+											{ color: colors.textSecondary },
+										]}
+									>
+										Last 12 weeks
+									</Text>
+								</View>
+								<SquircleView
+									style={[styles.activityCard, cardStyle]}
+									cornerSmoothing={1}
+								>
+									<LinearGradient
+										colors={cardGradientColors as any}
+										start={{ x: 0, y: 0 }}
+										end={{ x: 1, y: 1 }}
+										style={styles.activityGradient}
+									>
+										<View style={styles.contributionGraph}>
+											{/* Day labels (Sun-Sat) */}
+											<View style={styles.dayLabels}>
+												{["S", "M", "T", "W", "T", "F", "S"].map(
+													(day, index) => (
+														<Text
+															key={index}
+															style={[
+																styles.dayLabel,
+																{ color: colors.textTertiary },
+															]}
+														>
+															{day}
+														</Text>
+													)
+												)}
+											</View>
+
+											{/* Contribution grid */}
+											<View style={styles.contributionGrid}>
+												{contributionWeeks.map((week, weekIndex) => (
+													<View key={weekIndex} style={styles.weekColumn}>
+														{week.map((day, dayIndex) => {
+															const isToday =
+																day.date.toDateString() ===
+																new Date().toDateString();
+															const intensityColor = getIntensityColor(
+																day.intensity
+															);
+
+															return (
+																<SquircleView
+																	key={dayIndex}
+																	style={[
+																		styles.contributionCell,
+																		{
+																			backgroundColor: intensityColor,
+																		},
+																		isToday
+																			? {
+																					borderWidth: 2,
+																					borderColor: colors.primary,
+																				}
+																			: {},
+																	]}
+																	cornerSmoothing={1.0}
+																>
+																	<View />
+																</SquircleView>
+															);
+														})}
+													</View>
+												))}
+											</View>
+
+											{/* Legend */}
+											<View style={styles.legend}>
+												<Text
+													style={[
+														styles.legendLabel,
+														{ color: colors.textSecondary },
+													]}
+												>
+													Less
+												</Text>
+												<View style={styles.legendCells}>
+													{[0, 1, 2, 3, 4].map((intensity) => (
+														<SquircleView
+															key={intensity}
+															style={[
+																styles.legendCell,
+																{
+																	backgroundColor: getIntensityColor(intensity),
+																},
+															]}
+															cornerSmoothing={1.0}
+														>
+															<View />
+														</SquircleView>
+													))}
+												</View>
+												<Text
+													style={[
+														styles.legendLabel,
+														{ color: colors.textSecondary },
+													]}
+												>
+													More
+												</Text>
+											</View>
+										</View>
+									</LinearGradient>
+								</SquircleView>
+							</View>
+
+							{/* Badges Section */}
+							<View style={styles.sectionContainer}>
+								<View style={styles.sectionHeader}>
+									<Text style={[styles.sectionTitle, { color: colors.text }]}>
+										Achievements
+									</Text>
+								</View>
+								{badges.length > 0 ? (
+									<View style={styles.badgesContainer}>
+										{badges.map((badge) => {
+											const rarityColors = {
+												common: ["#94A3B8", "#64748B"],
+												rare: ["#3B82F6", "#2563EB"],
+												epic: ["#A855F7", "#7C3AED"],
+												legendary: ["#F59E0B", "#D97706"],
+											};
+
+											return (
+												<TouchableOpacity
+													key={badge.id}
+													style={styles.badgeCardWrapper}
+													onPress={() => setSelectedBadge(badge)}
+													activeOpacity={0.8}
+												>
+													<SquircleView
+														style={styles.badgeCard}
+														cornerSmoothing={1.0}
+													>
+														<Image
+															source={badge.image}
+															style={styles.badgeImage}
+															resizeMode="cover"
+														/>
+													</SquircleView>
+												</TouchableOpacity>
+											);
+										})}
+									</View>
+								) : (
+									<View style={styles.emptyBadgesContainer}>
+										<Text
+											style={[
+												styles.emptyBadgesText,
+												{ color: colors.textSecondary },
+											]}
+										>
+											🏆 No achievements yet
+										</Text>
+										<Text
+											style={[
+												styles.emptyBadgesSubtext,
+												{ color: colors.textTertiary },
+											]}
+										>
+											Keep checking in to earn badges!
+										</Text>
+									</View>
+								)}
+							</View>
+
+							{/* Badge Card Modal */}
+							{selectedBadge && (
+								<BadgeCard
+									visible={!!selectedBadge}
+									onClose={() => setSelectedBadge(null)}
+									badge={selectedBadge}
+								/>
+							)}
+						</>
+					)}
+				</ScrollView>
+			</SafeAreaView>
+		</ScreenTransition>
+	);
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingHorizontal: Theme.spacing.lg,
-    paddingTop: Theme.spacing.lg,
-    paddingBottom: Theme.spacing.sm,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: Theme.typography.fontWeight.bold,
-    color: '#000000',
-    marginBottom: Theme.spacing.lg,
-  },
-  avatarContainer: {
-    alignItems: 'center',
-    marginBottom: Theme.spacing.sm,
-  },
-  avatar: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: '#8B5CF6',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: Theme.spacing.sm,
-  },
-  avatarImage: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-  },
-  avatarEmoji: {
-    fontSize: 50,
-  },
-  changePhotoText: {
-    fontSize: Theme.typography.fontSize.sm,
-    color: '#8B5CF6',
-    fontWeight: Theme.typography.fontWeight.semibold,
-  },
-  userName: {
-    fontSize: Theme.typography.fontSize.xl,
-    fontWeight: Theme.typography.fontWeight.bold,
-    color: '#000000',
-    textAlign: 'center',
-    marginBottom: Theme.spacing.xl,
-  },
-  statsContainer: {
-    flexDirection: 'row',
-    gap: Theme.spacing.sm,
-    marginBottom: Theme.spacing.xl,
-  },
-  statCard: {
-    flex: 1,
-    backgroundColor: '#F5F5F5',
-    borderRadius: Theme.borderRadius.lg,
-    padding: Theme.spacing.md,
-    alignItems: 'center',
-  },
-  statValue: {
-    fontSize: 24,
-    fontWeight: Theme.typography.fontWeight.bold,
-    color: '#8B5CF6',
-    marginBottom: 4,
-  },
-  statLabel: {
-    fontSize: Theme.typography.fontSize.xs,
-    color: '#666666',
-    textAlign: 'center',
-    marginBottom: 4,
-  },
-  statEmoji: {
-    fontSize: 20,
-  },
-  sectionTitle: {
-    fontSize: Theme.typography.fontSize.lg,
-    fontWeight: Theme.typography.fontWeight.bold,
-    color: '#000000',
-    marginBottom: Theme.spacing.md,
-  },
-  calendarCard: {
-    backgroundColor: '#F5F5F5',
-    borderRadius: Theme.borderRadius.lg,
-    padding: Theme.spacing.md,
-    marginBottom: Theme.spacing.xl,
-  },
-  calendarGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-  },
-  calendarDay: {
-    width: 38,
-    height: 38,
-    borderRadius: 8,
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  calendarDayActive: {
-    backgroundColor: '#8B5CF6',
-  },
-  calendarDayToday: {
-    borderWidth: 2,
-    borderColor: '#8B5CF6',
-  },
-  calendarDayText: {
-    fontSize: Theme.typography.fontSize.sm,
-    color: '#999999',
-    fontWeight: Theme.typography.fontWeight.medium,
-  },
-  calendarDayTextActive: {
-    color: '#FFFFFF',
-    fontWeight: Theme.typography.fontWeight.bold,
-  },
-  calendarDayTextToday: {
-    color: '#8B5CF6',
-    fontWeight: Theme.typography.fontWeight.bold,
-  },
-  badgesContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    marginBottom: Theme.spacing.lg,
-  },
-  badgeCardWrapper: {
-    width: '48%',
-    marginBottom: Theme.spacing.md,
-  },
-  badgeCard: {
-    width: '100%',
-    borderRadius: Theme.borderRadius.xl,
-    overflow: 'hidden',
-    position: 'relative',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.25,
-    shadowRadius: 12,
-    elevation: 10,
-  },
-  badgeGradient: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    opacity: 0.15,
-  },
-  badgeImageContainer: {
-    width: '100%',
-    aspectRatio: 0.72,
-    position: 'relative',
-    backgroundColor: '#FFFFFF',
-    padding: 6,
-    justifyContent: 'center',
-    alignItems: 'center',
-    overflow: 'hidden',
-  },
-  badgeImageWhiteBackground: {
-    position: 'absolute',
-    top: 6,
-    left: 6,
-    right: 6,
-    bottom: 6,
-    borderRadius: Theme.borderRadius.md,
-    backgroundColor: '#FFFFFF',
-    zIndex: 0,
-  },
-  badgeImage: {
-    width: '100%',
-    height: '100%',
-    borderRadius: Theme.borderRadius.md,
-    zIndex: 1,
-  },
-  badgeInfo: {
-    padding: Theme.spacing.sm,
-    paddingTop: Theme.spacing.xs,
-    alignItems: 'center',
-    backgroundColor: 'transparent',
-    minHeight: 70,
-    justifyContent: 'space-between',
-  },
-  badgeName: {
-    fontSize: Theme.typography.fontSize.sm,
-    fontWeight: Theme.typography.fontWeight.bold,
-    color: '#000000',
-    marginBottom: Theme.spacing.xs,
-    textAlign: 'center',
-    lineHeight: 18,
-  },
-  rarityBadge: {
-    paddingHorizontal: Theme.spacing.sm,
-    paddingVertical: 3,
-    borderRadius: Theme.borderRadius.sm,
-    marginTop: 'auto',
-  },
-  rarityText: {
-    fontSize: 8,
-    fontWeight: Theme.typography.fontWeight.bold,
-    color: '#FFFFFF',
-    letterSpacing: 1.2,
-  },
-  badgeEmoji: {
-    fontSize: 40,
-    marginBottom: Theme.spacing.sm,
-  },
-  badgeDescription: {
-    fontSize: Theme.typography.fontSize.xs,
-    color: '#666666',
-    textAlign: 'center',
-  },
-  headerContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: Theme.spacing.lg,
-    paddingTop: Theme.spacing.sm,
-  },
-  themeToggle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
+	container: {
+		flex: 1,
+	},
+	scrollView: {
+		flex: 1,
+	},
+	scrollContent: {
+		paddingHorizontal: Theme.spacing.lg,
+		paddingTop: Theme.spacing.lg,
+		paddingBottom: Theme.spacing.xl * 2,
+	},
+	headerContainer: {
+		flexDirection: "row",
+		justifyContent: "space-between",
+		alignItems: "center",
+		marginBottom: Theme.spacing.lg,
+	},
+	title: {
+		fontSize: 28,
+		fontWeight: Theme.typography.fontWeight.bold,
+	},
+	themeToggle: {
+		width: 44,
+		height: 44,
+		justifyContent: "center",
+		alignItems: "center",
+	},
+	cogButtonContainer: {
+		width: 44,
+		height: 44,
+		borderRadius: 22,
+		overflow: "hidden",
+		position: "relative",
+		shadowColor: "#000",
+		shadowOffset: {
+			width: 0,
+			height: 2,
+		},
+		shadowOpacity: 0.1,
+		shadowRadius: 4,
+		elevation: 3,
+	},
+	cogBlur: {
+		...StyleSheet.absoluteFillObject,
+		borderRadius: 22,
+	},
+	cogBorder: {
+		...StyleSheet.absoluteFillObject,
+		borderRadius: 22,
+		borderWidth: 1,
+		zIndex: 1,
+	},
+	cogIconContainer: {
+		width: 44,
+		height: 44,
+		justifyContent: "center",
+		alignItems: "center",
+		zIndex: 2,
+	},
+	contextMenuHost: {
+		width: 44,
+		height: 44,
+	},
+	menuSheetContent: {
+		padding: Theme.spacing.lg,
+	},
+	menuItem: {
+		paddingVertical: Theme.spacing.md,
+		borderBottomWidth: 1,
+	},
+	menuItemText: {
+		fontSize: Theme.typography.fontSize.base,
+		fontWeight: Theme.typography.fontWeight.medium,
+	},
+	profileCard: {
+		marginBottom: Theme.spacing.xl,
+		overflow: "hidden",
+	},
+	signInCardContent: {
+		padding: Theme.spacing.xl,
+		alignItems: "center",
+	},
+	signInIconContainer: {
+		marginBottom: Theme.spacing.md,
+	},
+	signInEmoji: {
+		fontSize: 48,
+	},
+	signInTitle: {
+		fontSize: Theme.typography.fontSize.xl,
+		fontWeight: Theme.typography.fontWeight.bold,
+		textAlign: "center",
+		marginBottom: Theme.spacing.sm,
+	},
+	signInSubtitle: {
+		fontSize: Theme.typography.fontSize.base,
+		textAlign: "center",
+		marginBottom: Theme.spacing.lg,
+		lineHeight: 20,
+	},
+	signInButtonContainer: {
+		width: "100%",
+		marginTop: Theme.spacing.sm,
+	},
+	profileGradient: {
+		padding: Theme.spacing.lg,
+		flexDirection: "row",
+		alignItems: "center",
+		gap: Theme.spacing.md,
+	},
+	avatarWrapper: {
+		position: "relative",
+	},
+	avatar: {
+		width: 80,
+		height: 80,
+		borderRadius: 40,
+		alignItems: "center",
+		justifyContent: "center",
+	},
+	avatarImage: {
+		width: 80,
+		height: 80,
+		borderRadius: 40,
+	},
+	avatarEmoji: {
+		fontSize: 40,
+	},
+	editBadge: {
+		position: "absolute",
+		bottom: 0,
+		right: 0,
+		width: 24,
+		height: 24,
+		borderRadius: 12,
+		alignItems: "center",
+		justifyContent: "center",
+		borderWidth: 2,
+		borderColor: "#FFFFFF",
+	},
+	userInfo: {
+		flex: 1,
+	},
+	userName: {
+		fontSize: Theme.typography.fontSize.xl,
+		fontWeight: Theme.typography.fontWeight.bold,
+		marginBottom: 4,
+	},
+	userSubtitle: {
+		fontSize: Theme.typography.fontSize.sm,
+	},
+	statsContainer: {
+		marginBottom: Theme.spacing.xl,
+		overflow: "hidden",
+	},
+	statsGradient: {
+		flexDirection: "row",
+		padding: Theme.spacing.lg,
+		alignItems: "center",
+	},
+	statItem: {
+		flex: 1,
+		alignItems: "center",
+	},
+	verticalDivider: {
+		width: 1,
+		height: "80%",
+		marginHorizontal: Theme.spacing.xs,
+	},
+	statEmoji: {
+		fontSize: 24,
+		marginBottom: 4,
+	},
+	statValue: {
+		fontSize: 24,
+		fontWeight: Theme.typography.fontWeight.bold,
+		marginBottom: 2,
+	},
+	statLabel: {
+		fontSize: 11,
+		textAlign: "center",
+		fontWeight: Theme.typography.fontWeight.medium,
+	},
+	sectionContainer: {
+		marginBottom: Theme.spacing.xl,
+	},
+	sectionHeader: {
+		flexDirection: "row",
+		justifyContent: "space-between",
+		alignItems: "center",
+		marginBottom: Theme.spacing.md,
+	},
+	sectionTitle: {
+		fontSize: Theme.typography.fontSize.lg,
+		fontWeight: Theme.typography.fontWeight.bold,
+	},
+	sectionSubtitle: {
+		fontSize: Theme.typography.fontSize.sm,
+		marginLeft: Theme.spacing.sm,
+	},
+	activityCard: {
+		marginBottom: Theme.spacing.xl,
+		overflow: "hidden",
+	},
+	activityGradient: {
+		padding: Theme.spacing.md,
+		paddingHorizontal: Theme.spacing.sm,
+	},
+	contributionGraph: {
+		width: "100%",
+		alignItems: "flex-start",
+	},
+	dayLabels: {
+		flexDirection: "row",
+		marginBottom: Theme.spacing.xs,
+		marginLeft: 20,
+		width: "100%",
+		justifyContent: "space-between",
+		paddingRight: Theme.spacing.sm,
+	},
+	dayLabel: {
+		fontSize: 10,
+		fontWeight: Theme.typography.fontWeight.medium,
+		textAlign: "center",
+		flex: 1,
+	},
+	contributionGrid: {
+		flexDirection: "row",
+		gap: 2,
+		marginBottom: Theme.spacing.md,
+		width: "100%",
+		justifyContent: "space-between",
+		paddingHorizontal: Theme.spacing.xs,
+	},
+	weekColumn: {
+		flexDirection: "column",
+		gap: 2,
+		flex: 1,
+		alignItems: "center",
+	},
+	contributionCell: {
+		width: "100%",
+		aspectRatio: 1,
+		minWidth: 14,
+		minHeight: 14,
+	},
+	legend: {
+		flexDirection: "row",
+		alignItems: "center",
+		justifyContent: "center",
+		gap: Theme.spacing.sm,
+		marginTop: Theme.spacing.sm,
+	},
+	legendLabel: {
+		fontSize: 10,
+		fontWeight: Theme.typography.fontWeight.medium,
+	},
+	legendCells: {
+		flexDirection: "row",
+		gap: 3,
+	},
+	legendCell: {
+		width: 14,
+		height: 14,
+	},
+	badgesContainer: {
+		flexDirection: "row",
+		flexWrap: "wrap",
+		justifyContent: "space-between",
+	},
+	emptyBadgesContainer: {
+		paddingVertical: Theme.spacing.xl,
+		alignItems: "center",
+	},
+	emptyBadgesText: {
+		fontSize: Theme.typography.fontSize.lg,
+		fontWeight: Theme.typography.fontWeight.semibold,
+		marginBottom: Theme.spacing.xs,
+	},
+	emptyBadgesSubtext: {
+		fontSize: Theme.typography.fontSize.sm,
+		textAlign: "center",
+	},
+	badgeCardWrapper: {
+		width: "48%",
+		marginBottom: Theme.spacing.md,
+	},
+	badgeCard: {
+		width: "100%",
+		aspectRatio: 1,
+		overflow: "hidden",
+	},
+	badgeImage: {
+		width: "100%",
+		height: "100%",
+	},
 });

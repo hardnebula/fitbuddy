@@ -29,7 +29,7 @@ import { useAuthContext } from "../../contexts/AuthContext";
 import { useGroups, useGroupByInviteCode } from "../../lib/groups";
 import { markOnboardingComplete } from "../../lib/onboarding";
 
-const SELECTED_GROUP_KEY = "fitbuddy_selected_group_id";
+const SELECTED_GROUP_KEY = "teo_selected_group_id";
 
 export default function JoinGroupScreen() {
 	const router = useRouter();

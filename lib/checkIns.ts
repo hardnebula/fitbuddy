@@ -8,8 +8,12 @@ import { Id } from "@/convex/_generated/dataModel";
 export function useCheckIns() {
 	const createCheckInMutationFn = useConvexMutation(api.checkIns.createCheckIn);
 	const updateCheckInMutationFn = useConvexMutation(api.checkIns.updateCheckIn);
-	const archiveCheckInMutationFn = useConvexMutation(api.checkIns.archiveCheckIn);
-	const archiveCheckInsMutationFn = useConvexMutation(api.checkIns.archiveCheckIns);
+	const archiveCheckInMutationFn = useConvexMutation(
+		api.checkIns.archiveCheckIn
+	);
+	const archiveCheckInsMutationFn = useConvexMutation(
+		api.checkIns.archiveCheckIns
+	);
 
 	const createCheckInMutation = useMutation({
 		mutationFn: createCheckInMutationFn,
@@ -67,8 +71,12 @@ export function useCheckIns() {
 }
 
 // Hook to get check-ins for a group
-export function useGroupCheckIns(groupId: Id<'groups'> | null, limit?: number) {
-	const { data: checkIns, isPending, error } = useQuery({
+export function useGroupCheckIns(groupId: Id<"groups"> | null, limit?: number) {
+	const {
+		data: checkIns,
+		isPending,
+		error,
+	} = useQuery({
 		...convexQuery(api.checkIns.getGroupCheckIns, { groupId: groupId!, limit }),
 		enabled: !!groupId,
 	});
@@ -83,8 +91,12 @@ export function useGroupCheckIns(groupId: Id<'groups'> | null, limit?: number) {
 }
 
 // Hook to get user's check-ins
-export function useUserCheckIns(userId: Id<'users'> | null, limit?: number) {
-	const { data: checkIns, isPending, error } = useQuery({
+export function useUserCheckIns(userId: Id<"users"> | null, limit?: number) {
+	const {
+		data: checkIns,
+		isPending,
+		error,
+	} = useQuery({
 		...convexQuery(api.checkIns.getUserCheckIns, { userId: userId!, limit }),
 		enabled: !!userId,
 	});
@@ -99,8 +111,12 @@ export function useUserCheckIns(userId: Id<'users'> | null, limit?: number) {
 }
 
 // Hook to check if user checked in today
-export function useHasCheckedInToday(userId: Id<'users'> | null) {
-	const { data: hasCheckedIn, isPending, error } = useQuery({
+export function useHasCheckedInToday(userId: Id<"users"> | null) {
+	const {
+		data: hasCheckedIn,
+		isPending,
+		error,
+	} = useQuery({
 		...convexQuery(api.checkIns.hasCheckedInToday, { userId: userId! }),
 		enabled: !!userId,
 	});
@@ -121,7 +137,11 @@ export function useCheckInsByDateRange(
 	startDate: number,
 	endDate: number
 ) {
-	const { data: checkIns, isPending, error } = useQuery(
+	const {
+		data: checkIns,
+		isPending,
+		error,
+	} = useQuery(
 		convexQuery(api.checkIns.getCheckInsByDateRange, {
 			userId: userId || undefined,
 			groupId: groupId || undefined,
@@ -138,3 +158,22 @@ export function useCheckInsByDateRange(
 	return checkIns;
 }
 
+// Hook to get user stats
+export function useUserStats(userId: Id<"users"> | null) {
+	const {
+		data: stats,
+		isPending,
+		error,
+	} = useQuery({
+		...convexQuery(api.users.getUserStats, { userId: userId! }),
+		enabled: !!userId,
+	});
+
+	if (!userId) return undefined;
+	if (isPending) return undefined;
+	if (error) {
+		console.error("Error fetching user stats:", error);
+		return undefined;
+	}
+	return stats;
+}

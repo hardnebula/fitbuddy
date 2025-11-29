@@ -85,7 +85,11 @@ export function CheckInActionsBottomSheet({
 
 	if (!isOwnCheckIn) {
 		return (
-			<BottomSheet visible={visible} onClose={onClose} snapPoints={MODAL_SNAP_POINTS}>
+			<BottomSheet
+				visible={visible}
+				onClose={onClose}
+				snapPoints={MODAL_SNAP_POINTS}
+			>
 				<View style={styles.container}>
 					<Text style={[styles.title, { color: colors.textSecondary }]}>
 						You can only edit your own check-ins
@@ -124,12 +128,16 @@ export function CheckInActionsBottomSheet({
 					photo: form.photo || null,
 					note: form.note.trim() || null,
 				});
-				console.log("[CheckInActionsBottomSheet] Local check-in updated successfully");
+				console.log(
+					"[CheckInActionsBottomSheet] Local check-in updated successfully"
+				);
 			} else {
 				// Update server check-in
 				// Convert empty strings to undefined for Convex schema
-				const photoValue = form.photo && form.photo.trim() ? form.photo : undefined;
-				const noteValue = form.note && form.note.trim() ? form.note.trim() : undefined;
+				const photoValue =
+					form.photo && form.photo.trim() ? form.photo : undefined;
+				const noteValue =
+					form.note && form.note.trim() ? form.note.trim() : undefined;
 
 				console.log("[CheckInActionsBottomSheet] Updating server check-in:", {
 					checkInId: checkIn.id,
@@ -142,13 +150,18 @@ export function CheckInActionsBottomSheet({
 					photo: photoValue,
 					note: noteValue,
 				});
-				console.log("[CheckInActionsBottomSheet] Server check-in updated successfully");
+				console.log(
+					"[CheckInActionsBottomSheet] Server check-in updated successfully"
+				);
 			}
 
 			onEdited?.();
 			onClose();
 		} catch (error: any) {
-			console.error("[CheckInActionsBottomSheet] Error updating check-in:", error);
+			console.error(
+				"[CheckInActionsBottomSheet] Error updating check-in:",
+				error
+			);
 			Alert.alert(
 				"Error",
 				error.message || "Failed to update check-in. Please try again."
@@ -227,7 +240,7 @@ export function CheckInActionsBottomSheet({
 						Edit Check-in
 					</Text>
 					<Text style={[styles.subtitle, { color: colors.textTertiary }]}>
-						Update your workout details
+						Update your check-in details
 					</Text>
 				</View>
 
@@ -304,9 +317,7 @@ export function CheckInActionsBottomSheet({
 											]}
 										>
 											<Text style={styles.photoOptionIcon}>📸</Text>
-											<Text style={styles.photoOptionButtonText}>
-												Camera
-											</Text>
+											<Text style={styles.photoOptionButtonText}>Camera</Text>
 										</TouchableOpacity>
 										<TouchableOpacity
 											onPress={async () => {
@@ -319,9 +330,7 @@ export function CheckInActionsBottomSheet({
 											]}
 										>
 											<Text style={styles.photoOptionIcon}>🖼️</Text>
-											<Text style={styles.photoOptionButtonText}>
-												Gallery
-											</Text>
+											<Text style={styles.photoOptionButtonText}>Gallery</Text>
 										</TouchableOpacity>
 									</View>
 								)}
@@ -345,7 +354,7 @@ export function CheckInActionsBottomSheet({
 									color: colors.text,
 								},
 							]}
-							placeholder="How did your workout go?"
+							placeholder="How did it go?"
 							placeholderTextColor={colors.textTertiary}
 							value={form.note}
 							onChangeText={form.setNote}
@@ -363,7 +372,12 @@ export function CheckInActionsBottomSheet({
 					</View>
 
 					{/* Save Button */}
-					<View style={[styles.buttonContainer, { backgroundColor: colors.surface }]}>
+					<View
+						style={[
+							styles.buttonContainer,
+							{ backgroundColor: colors.surface },
+						]}
+					>
 						<Button
 							title="Save Changes"
 							onPress={() => {

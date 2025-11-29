@@ -34,8 +34,8 @@ import { authClient } from "../../lib/auth-client";
 import { useAuth } from "../../lib/auth";
 import { markOnboardingComplete } from "../../lib/onboarding";
 
-const SELECTED_GROUP_KEY = "fitbuddy_selected_group_id";
-const ANONYMOUS_GROUP_INVITE_KEY = "fitbuddy_anonymous_group_invite";
+const SELECTED_GROUP_KEY = "teo_selected_group_id";
+const ANONYMOUS_GROUP_INVITE_KEY = "teo_anonymous_group_invite";
 
 // Email validation helper
 const isValidEmail = (email: string): boolean => {
@@ -250,7 +250,7 @@ export default function CreateGroupScreen() {
 										<Text
 											style={[styles.subtitle, { color: colors.textSecondary }]}
 										>
-											Start your fitness journey
+											Start your accountability journey
 										</Text>
 									</View>
 								</View>

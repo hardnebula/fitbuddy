@@ -123,7 +123,7 @@ export default function FinalScreen() {
 								<Text
 									style={[styles.previewLabel, { color: colors.textSecondary }]}
 								>
-									Your fitness journey starts here
+									Your journey starts here
 								</Text>
 								<View style={styles.previewContainer}>
 									<Image

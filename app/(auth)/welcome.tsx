@@ -1,5 +1,12 @@
 import React from "react";
-import { View, Text, StyleSheet, StatusBar, Image, TouchableOpacity } from "react-native";
+import {
+	View,
+	Text,
+	StyleSheet,
+	StatusBar,
+	Image,
+	TouchableOpacity,
+} from "react-native";
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Button } from "../../components/Button";
@@ -38,7 +45,7 @@ export default function WelcomeScreen() {
 					{/* Text Content */}
 					<View style={styles.textContainer}>
 						<Text style={[styles.title, { color: colors.text }]}>
-							Welcome to FitBuddy
+							Welcome to Teo
 						</Text>
 						<Text style={[styles.subtitle, { color: colors.textSecondary }]}>
 							Stay consistent with the people you trust.

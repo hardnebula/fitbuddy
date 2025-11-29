@@ -1,14 +1,16 @@
-# FitBuddy Project Summary
+# Teo Project Summary
 
 ## ✅ Completed Features
 
 ### 1. Project Setup
+
 - ✅ Expo project structure with TypeScript
 - ✅ All dependencies configured (expo-router, reanimated, image-picker, etc.)
 - ✅ Theme system with dark blue design
 - ✅ TypeScript types for all data models
 
 ### 2. Design System
+
 - ✅ Complete color palette (blue theme)
 - ✅ Typography system with consistent sizing
 - ✅ Spacing and border radius constants
@@ -16,6 +18,7 @@
 - ✅ Touch target guidelines (52x52px minimum)
 
 ### 3. Core Components
+
 - ✅ Button (primary, outline, ghost variants)
 - ✅ Card with glow effects
 - ✅ Input fields with focus states
@@ -26,12 +29,14 @@
 - ✅ StreakBadge with pulse animation
 
 ### 4. Authentication Screens
+
 - ✅ Welcome screen with social login options
 - ✅ Create Group screen with member management
 - ✅ Join Group screen with invite code input
 - ✅ Copy invite code functionality
 
 ### 5. Main App Screens
+
 - ✅ Home/Feed screen
   - Hero card with check-in button
   - Streak display (user & group)
@@ -54,12 +59,14 @@
   - Delete account option
 
 ### 6. Navigation
+
 - ✅ Bottom tab navigation (Home, Groups, Profile)
 - ✅ Stack navigation for auth flow
 - ✅ Modal navigation for check-ins
 - ✅ Proper routing with Expo Router
 
 ### 7. Animations & Interactions
+
 - ✅ Button press animations with scale
 - ✅ Streak badge pulse animation
 - ✅ Haptic feedback on interactions
@@ -67,6 +74,7 @@
 - ✅ Smooth transitions
 
 ### 8. UX Features
+
 - ✅ Keyboard avoiding views
 - ✅ Safe area handling
 - ✅ Loading states
@@ -77,7 +85,7 @@
 ## 📁 Project Structure
 
 ```
-FitBuddy/
+Teo/
 ├── app/                    # Expo Router app directory
 │   ├── (auth)/            # Auth flow screens
 │   ├── (tabs)/            # Main app tabs
@@ -96,6 +104,7 @@ FitBuddy/
 ## 🎨 Design Implementation
 
 All design requirements have been implemented:
+
 - ✅ Dark theme (#0F172A background)
 - ✅ Bright blue buttons (#3B82F6)
 - ✅ Cyan accents for streaks (#22D3EE)
@@ -110,11 +119,13 @@ All design requirements have been implemented:
 To run the project:
 
 1. Install dependencies:
+
    ```bash
    npm install
    ```
 
 2. Start Expo:
+
    ```bash
    npm start
    ```
@@ -145,4 +156,3 @@ To run the project:
 6. **User Flow**: Intuitive navigation with max 3 taps per check-in
 
 The project is ready for development and can be extended with backend integration and additional features!
-

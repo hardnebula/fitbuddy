@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "FitBuddy",
-    "slug": "fitbuddy",
+    "name": "Teo: Daily Accountability",
+    "slug": "teo",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -17,16 +17,22 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.fitbuddy.app",
-      "backgroundColor": "#0F172A"
+      "bundleIdentifier": "com.teo.app",
+      "backgroundColor": "#0F172A",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0F172A"
       },
-      "package": "com.fitbuddy.app",
-      "backgroundColor": "#0F172A"
+      "package": "com.teo.app",
+      "backgroundColor": "#0F172A",
+      "permissions": [
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -36,11 +42,17 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "The app accesses your photos to let you share workout photos."
+          "photosPermission": "The app accesses your photos to let you share check-in photos."
         }
       ],
       "expo-secure-store"
     ],
-    "scheme": "fitbuddy"
+    "scheme": "teo",
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "bcfc5ecd-053a-4fc1-9f2f-183302d297a3"
+      }
+    }
   }
 }

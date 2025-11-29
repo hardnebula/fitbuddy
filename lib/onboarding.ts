@@ -1,8 +1,8 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { OnboardingData } from "../types/onboarding";
 
-const ONBOARDING_DATA_KEY = "@fitbuddy:onboarding_data";
-const ONBOARDING_COMPLETE_KEY = "@fitbuddy:onboarding_complete";
+const ONBOARDING_DATA_KEY = "@teo:onboarding_data";
+const ONBOARDING_COMPLETE_KEY = "@teo:onboarding_complete";
 
 /**
  * Save onboarding data to AsyncStorage
