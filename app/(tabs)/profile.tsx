@@ -207,11 +207,22 @@ export default function ProfileScreen() {
 		dateRange.endDate
 	);
 
+	// Mock data for testing when not logged in
+	const MOCK_USER_STATS = {
+		currentStreak: 60,
+		bestStreak: 60,
+		totalCheckIns: 180,
+	};
+
+	// Use real stats if available, otherwise use mock data for preview
+	const isPreviewMode = !userId;
+	const effectiveStats = userStats ?? (isPreviewMode ? MOCK_USER_STATS : null);
+
 	// Get user stats with fallbacks
-	const currentStreak = userStats?.currentStreak ?? 0;
-	const bestStreak = userStats?.bestStreak ?? 0;
-	const totalCheckIns = userStats?.totalCheckIns ?? 0;
-	const userName = user?.name ?? "User";
+	const currentStreak = effectiveStats?.currentStreak ?? 0;
+	const bestStreak = effectiveStats?.bestStreak ?? 0;
+	const totalCheckIns = effectiveStats?.totalCheckIns ?? 0;
+	const userName = user?.name ?? (isPreviewMode ? "Preview User" : "User");
 
 	// Shared Gradient Colors matching Home/Streak cards
 	const cardGradientColors = isDark
@@ -229,7 +240,7 @@ export default function ProfileScreen() {
 		elevation: 8,
 	};
 
-	// Generate GitHub-style contribution graph from real check-in data
+	// Generate GitHub-style contribution graph from real check-in data (or mock data in preview mode)
 	const contributionWeeks = useMemo(() => {
 		const weeks: Array<Array<{ intensity: number; date: Date }>> = [];
 		const today = new Date();
@@ -237,6 +248,7 @@ export default function ProfileScreen() {
 
 		// Create a map of check-ins by date (day key)
 		const checkInsByDay = new Map<number, number>();
+		
 		if (checkInsData) {
 			checkInsData.forEach((checkIn) => {
 				const checkInDate = new Date(checkIn.timestamp);
@@ -244,6 +256,21 @@ export default function ProfileScreen() {
 				const dayKey = checkInDate.getTime();
 				checkInsByDay.set(dayKey, (checkInsByDay.get(dayKey) || 0) + 1);
 			});
+		} else if (isPreviewMode) {
+			// Generate mock check-in data for preview mode
+			// Simulate a 45-day streak with varying intensity
+			for (let i = 0; i < 60; i++) {
+				const date = new Date(today);
+				date.setDate(date.getDate() - i);
+				date.setHours(0, 0, 0, 0);
+				const dayKey = date.getTime();
+				
+				// Skip some days randomly for variety, but keep recent 45 days mostly filled
+				if (i < 45 || Math.random() > 0.6) {
+					const intensity = i < 10 ? Math.floor(Math.random() * 3) + 2 : Math.floor(Math.random() * 4) + 1;
+					checkInsByDay.set(dayKey, intensity);
+				}
+			}
 		}
 
 		// Generate 12 weeks of data (7 days per week)
@@ -271,11 +298,111 @@ export default function ProfileScreen() {
 		}
 
 		return weeks;
-	}, [checkInsData]);
+	}, [checkInsData, isPreviewMode]);
 
-	// Calculate badges dynamically based on user stats
+	// Badge definitions - badges earned by streak days
+	const BADGE_DEFINITIONS = [
+		{
+			id: "day-1",
+			days: 1,
+			name: "Day 1",
+			description: "You started your journey! The first step is always the hardest. 🚀",
+			image: require("@/assets/Badges/Day1.png"),
+			rarity: "common" as const,
+		},
+		{
+			id: "day-5",
+			days: 5,
+			name: "Day 5",
+			description: "5 days strong! You're building momentum. Keep pushing! 💪",
+			image: require("@/assets/Badges/Day5.png"),
+			rarity: "common" as const,
+		},
+		{
+			id: "day-10",
+			days: 10,
+			name: "Day 10",
+			description: "Double digits! 10 days of dedication. You're on fire! 🔥",
+			image: require("@/assets/Badges/Day10.png"),
+			rarity: "rare" as const,
+		},
+		{
+			id: "day-15",
+			days: 15,
+			name: "Day 15",
+			description: "Halfway to a month! 15 days of consistency. Amazing! ⭐",
+			image: require("@/assets/Badges/Day15.png"),
+			rarity: "rare" as const,
+		},
+		{
+			id: "day-20",
+			days: 20,
+			name: "Day 20",
+			description: "20 days! You're creating a real habit now. Unstoppable! 🌟",
+			image: require("@/assets/Badges/Day20.png"),
+			rarity: "rare" as const,
+		},
+		{
+			id: "day-25",
+			days: 25,
+			name: "Day 25",
+			description: "25 days of pure dedication! You're almost at a month! 🏆",
+			image: require("@/assets/Badges/Day25.png"),
+			rarity: "epic" as const,
+		},
+		{
+			id: "day-30",
+			days: 30,
+			name: "Day 30",
+			description: "ONE MONTH! 30 days of commitment. You're a true warrior! ⚔️",
+			image: require("@/assets/Badges/Day30.png"),
+			rarity: "epic" as const,
+		},
+		{
+			id: "day-35",
+			days: 35,
+			name: "Day 35",
+			description: "35 days! Beyond a month and still going. Incredible! 💎",
+			image: require("@/assets/Badges/Day35.png"),
+			rarity: "epic" as const,
+		},
+		{
+			id: "day-40",
+			days: 40,
+			name: "Day 40",
+			description: "40 days! This is no longer a habit, it's who you are! 👑",
+			image: require("@/assets/Badges/Day40.png"),
+			rarity: "legendary" as const,
+		},
+		{
+			id: "day-45",
+			days: 45,
+			name: "Day 45",
+			description: "45 days! You're in the elite league now. Legendary status! 🌈",
+			image: require("@/assets/Badges/Day45.png"),
+			rarity: "legendary" as const,
+		},
+		{
+			id: "day-50",
+			days: 50,
+			name: "Day 50",
+			description: "HALF A HUNDRED! 50 days of excellence. You're unstoppable! 🎯",
+			image: require("@/assets/Badges/Day50.png"),
+			rarity: "legendary" as const,
+		},
+		{
+			id: "day-60",
+			days: 60,
+			name: "Day 60",
+			description: "TWO MONTHS! 60 days of absolute dedication. You're a legend! 🏅",
+			image: require("@/assets/Badges/Day60.png"),
+			rarity: "legendary" as const,
+		},
+	];
+
+	// Calculate badges dynamically based on user stats (or mock stats in preview mode)
 	const badges = useMemo(() => {
-		if (!userStats) return [];
+		if (!effectiveStats) return [];
 
 		const earnedBadges: Array<{
 			id: string;
@@ -286,88 +413,33 @@ export default function ProfileScreen() {
 			rarity: "common" | "rare" | "epic" | "legendary";
 		}> = [];
 
-		// 7 Day Streak badge
-		if (userStats.bestStreak >= 7) {
-			// Estimate earned date: today minus (bestStreak - 7) days
-			const estimatedEarnedDate = new Date();
-			estimatedEarnedDate.setDate(
-				estimatedEarnedDate.getDate() - (userStats.bestStreak - 7)
-			);
-			earnedBadges.push({
-				id: "7-day-streak",
-				name: "7 Day Streak",
-				description:
-					"Completed 7 consecutive days of check-ins. Keep the fire burning!",
-				image: require("@/assets/images/Badges/7 day streak.png"),
-				earnedDate: estimatedEarnedDate,
-				rarity: "rare" as const,
-			});
-		}
-
-		// 30 Day Streak badge
-		if (userStats.bestStreak >= 30) {
-			const estimatedEarnedDate = new Date();
-			estimatedEarnedDate.setDate(
-				estimatedEarnedDate.getDate() - (userStats.bestStreak - 30)
-			);
-			earnedBadges.push({
-				id: "30-day-streak",
-				name: "30 Day Streak",
-				description:
-					"Achieved 30 consecutive days of check-ins. You're unstoppable!",
-				image: require("@/assets/images/Badges/30 day streak.png"),
-				earnedDate: estimatedEarnedDate,
-				rarity: "epic" as const,
-			});
-		}
-
-		// 100 Check-ins badge
-		if (userStats.totalCheckIns >= 100) {
-			// Estimate: assume user started earning check-ins from createdAt
-			const estimatedEarnedDate = user?.createdAt
-				? new Date(
-						user.createdAt +
-							(100 / userStats.totalCheckIns) * (Date.now() - user.createdAt)
-					)
-				: new Date();
-			earnedBadges.push({
-				id: "100-checkins",
-				name: "100 Check-ins",
-				description: "Reached 100 total check-ins. A true dedication!",
-				image: require("@/assets/images/Badges/100 Check in.png"),
-				earnedDate: estimatedEarnedDate,
-				rarity: "epic" as const,
-			});
-		}
-
-		// Legendary Badge (for exceptional achievements)
-		if (userStats.bestStreak >= 100 || userStats.totalCheckIns >= 500) {
-			const estimatedEarnedDate = new Date();
-			if (userStats.bestStreak >= 100) {
+		// Check each badge definition against user's best streak
+		for (const badgeDef of BADGE_DEFINITIONS) {
+			if (effectiveStats.bestStreak >= badgeDef.days) {
+				// Estimate earned date: today minus (bestStreak - requiredDays) days
+				const estimatedEarnedDate = new Date();
 				estimatedEarnedDate.setDate(
-					estimatedEarnedDate.getDate() - (userStats.bestStreak - 100)
+					estimatedEarnedDate.getDate() - (effectiveStats.bestStreak - badgeDef.days)
 				);
-			} else if (user?.createdAt) {
-				estimatedEarnedDate.setTime(
-					user.createdAt +
-						(500 / userStats.totalCheckIns) * (Date.now() - user.createdAt)
-				);
+
+				earnedBadges.push({
+					id: badgeDef.id,
+					name: badgeDef.name,
+					description: badgeDef.description,
+					image: badgeDef.image,
+					earnedDate: estimatedEarnedDate,
+					rarity: badgeDef.rarity,
+				});
 			}
-			earnedBadges.push({
-				id: "legendary",
-				name: "Legendary Badge",
-				description: "Achieved legendary status. You're a true champion!",
-				image: require("@/assets/images/Badges/Legendary badge.png"),
-				earnedDate: estimatedEarnedDate,
-				rarity: "legendary" as const,
-			});
 		}
 
-		// Sort badges by earned date (most recent first)
-		return earnedBadges.sort(
-			(a, b) => b.earnedDate.getTime() - a.earnedDate.getTime()
-		);
-	}, [userStats, user?.createdAt]);
+		// Sort badges by days required (lowest first - Day 1 at top, Day 60 at bottom)
+		return earnedBadges.sort((a, b) => {
+			const aDays = BADGE_DEFINITIONS.find(d => d.id === a.id)?.days ?? 0;
+			const bDays = BADGE_DEFINITIONS.find(d => d.id === b.id)?.days ?? 0;
+			return aDays - bDays;
+		});
+	}, [effectiveStats]);
 
 	const handleChangePhoto = async () => {
 		const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -789,196 +861,280 @@ export default function ProfileScreen() {
 									</View>
 								</LinearGradient>
 							</SquircleView>
+						</>
+					)}
 
-							{/* Activity Graph Section - GitHub Style */}
-							<View style={styles.sectionContainer}>
-								<View style={styles.sectionHeader}>
-									<Text style={[styles.sectionTitle, { color: colors.text }]}>
-										Activity Overview
+					{/* Preview Stats Row - Show when not logged in */}
+					{isPreviewMode && (
+						<SquircleView
+							style={[styles.statsContainer, cardStyle]}
+							cornerSmoothing={1}
+						>
+							<LinearGradient
+								colors={cardGradientColors as any}
+								start={{ x: 0, y: 0 }}
+								end={{ x: 1, y: 1 }}
+								style={styles.statsGradient}
+							>
+								<View style={styles.previewBanner}>
+									<Text style={[styles.previewBannerText, { color: colors.primary }]}>
+										👀 Preview Mode
+									</Text>
+								</View>
+								<View style={styles.statItem}>
+									<Text style={styles.statEmoji}>🔥</Text>
+									<Text style={[styles.statValue, { color: colors.primary }]}>
+										{currentStreak}
 									</Text>
 									<Text
 										style={[
-											styles.sectionSubtitle,
+											styles.statLabel,
 											{ color: colors.textSecondary },
 										]}
 									>
-										Last 12 weeks
+										Current Streak
 									</Text>
 								</View>
-								<SquircleView
-									style={[styles.activityCard, cardStyle]}
-									cornerSmoothing={1}
-								>
-									<LinearGradient
-										colors={cardGradientColors as any}
-										start={{ x: 0, y: 0 }}
-										end={{ x: 1, y: 1 }}
-										style={styles.activityGradient}
+
+								<View
+									style={[
+										styles.verticalDivider,
+										{
+											backgroundColor: isDark
+												? "rgba(255,255,255,0.1)"
+												: "rgba(0,0,0,0.05)",
+										},
+									]}
+								/>
+
+								<View style={styles.statItem}>
+									<Text style={styles.statEmoji}>✅</Text>
+									<Text style={[styles.statValue, { color: colors.text }]}>
+										{totalCheckIns}
+									</Text>
+									<Text
+										style={[
+											styles.statLabel,
+											{ color: colors.textSecondary },
+										]}
 									>
-										<View style={styles.contributionGraph}>
-											{/* Day labels (Sun-Sat) */}
-											<View style={styles.dayLabels}>
-												{["S", "M", "T", "W", "T", "F", "S"].map(
-													(day, index) => (
-														<Text
-															key={index}
-															style={[
-																styles.dayLabel,
-																{ color: colors.textTertiary },
-															]}
-														>
-															{day}
-														</Text>
-													)
-												)}
-											</View>
+										Total Check-ins
+									</Text>
+								</View>
 
-											{/* Contribution grid */}
-											<View style={styles.contributionGrid}>
-												{contributionWeeks.map((week, weekIndex) => (
-													<View key={weekIndex} style={styles.weekColumn}>
-														{week.map((day, dayIndex) => {
-															const isToday =
-																day.date.toDateString() ===
-																new Date().toDateString();
-															const intensityColor = getIntensityColor(
-																day.intensity
-															);
+								<View
+									style={[
+										styles.verticalDivider,
+										{
+											backgroundColor: isDark
+												? "rgba(255,255,255,0.1)"
+												: "rgba(0,0,0,0.05)",
+										},
+									]}
+								/>
 
-															return (
-																<SquircleView
-																	key={dayIndex}
-																	style={[
-																		styles.contributionCell,
-																		{
-																			backgroundColor: intensityColor,
-																		},
-																		isToday
-																			? {
-																					borderWidth: 2,
-																					borderColor: colors.primary,
-																				}
-																			: {},
-																	]}
-																	cornerSmoothing={1.0}
-																>
-																	<View />
-																</SquircleView>
-															);
-														})}
-													</View>
-												))}
-											</View>
+								<View style={styles.statItem}>
+									<Text style={styles.statEmoji}>⚡</Text>
+									<Text style={[styles.statValue, { color: colors.text }]}>
+										{bestStreak}
+									</Text>
+									<Text
+										style={[
+											styles.statLabel,
+											{ color: colors.textSecondary },
+										]}
+									>
+										Best Streak
+									</Text>
+								</View>
+							</LinearGradient>
+						</SquircleView>
+					)}
 
-											{/* Legend */}
-											<View style={styles.legend}>
+					{/* Activity Graph Section - GitHub Style - Always visible */}
+					<View style={styles.sectionContainer}>
+						<View style={styles.sectionHeader}>
+							<Text style={[styles.sectionTitle, { color: colors.text }]}>
+								Activity Overview
+							</Text>
+							<Text
+								style={[
+									styles.sectionSubtitle,
+									{ color: colors.textSecondary },
+								]}
+							>
+								Last 12 weeks {isPreviewMode && "(Preview)"}
+							</Text>
+						</View>
+						<SquircleView
+							style={[styles.activityCard, cardStyle]}
+							cornerSmoothing={1}
+						>
+							<LinearGradient
+								colors={cardGradientColors as any}
+								start={{ x: 0, y: 0 }}
+								end={{ x: 1, y: 1 }}
+								style={styles.activityGradient}
+							>
+								<View style={styles.contributionGraph}>
+									{/* Day labels (Sun-Sat) */}
+									<View style={styles.dayLabels}>
+										{["S", "M", "T", "W", "T", "F", "S"].map(
+											(day, index) => (
 												<Text
+													key={index}
 													style={[
-														styles.legendLabel,
-														{ color: colors.textSecondary },
+														styles.dayLabel,
+														{ color: colors.textTertiary },
 													]}
 												>
-													Less
+													{day}
 												</Text>
-												<View style={styles.legendCells}>
-													{[0, 1, 2, 3, 4].map((intensity) => (
+											)
+										)}
+									</View>
+
+									{/* Contribution grid */}
+									<View style={styles.contributionGrid}>
+										{contributionWeeks.map((week, weekIndex) => (
+											<View key={weekIndex} style={styles.weekColumn}>
+												{week.map((day, dayIndex) => {
+													const isToday =
+														day.date.toDateString() ===
+														new Date().toDateString();
+													const intensityColor = getIntensityColor(
+														day.intensity
+													);
+
+													return (
 														<SquircleView
-															key={intensity}
+															key={dayIndex}
 															style={[
-																styles.legendCell,
+																styles.contributionCell,
 																{
-																	backgroundColor: getIntensityColor(intensity),
+																	backgroundColor: intensityColor,
 																},
+																isToday
+																	? {
+																			borderWidth: 2,
+																			borderColor: colors.primary,
+																		}
+																	: {},
 															]}
 															cornerSmoothing={1.0}
 														>
 															<View />
 														</SquircleView>
-													))}
-												</View>
-												<Text
-													style={[
-														styles.legendLabel,
-														{ color: colors.textSecondary },
-													]}
-												>
-													More
-												</Text>
+													);
+												})}
 											</View>
-										</View>
-									</LinearGradient>
-								</SquircleView>
-							</View>
-
-							{/* Badges Section */}
-							<View style={styles.sectionContainer}>
-								<View style={styles.sectionHeader}>
-									<Text style={[styles.sectionTitle, { color: colors.text }]}>
-										Achievements
-									</Text>
-								</View>
-								{badges.length > 0 ? (
-									<View style={styles.badgesContainer}>
-										{badges.map((badge) => {
-											const rarityColors = {
-												common: ["#94A3B8", "#64748B"],
-												rare: ["#3B82F6", "#2563EB"],
-												epic: ["#A855F7", "#7C3AED"],
-												legendary: ["#F59E0B", "#D97706"],
-											};
-
-											return (
-												<TouchableOpacity
-													key={badge.id}
-													style={styles.badgeCardWrapper}
-													onPress={() => setSelectedBadge(badge)}
-													activeOpacity={0.8}
-												>
-													<SquircleView
-														style={styles.badgeCard}
-														cornerSmoothing={1.0}
-													>
-														<Image
-															source={badge.image}
-															style={styles.badgeImage}
-															resizeMode="cover"
-														/>
-													</SquircleView>
-												</TouchableOpacity>
-											);
-										})}
+										))}
 									</View>
-								) : (
-									<View style={styles.emptyBadgesContainer}>
+
+									{/* Legend */}
+									<View style={styles.legend}>
 										<Text
 											style={[
-												styles.emptyBadgesText,
+												styles.legendLabel,
 												{ color: colors.textSecondary },
 											]}
 										>
-											🏆 No achievements yet
+											Less
 										</Text>
+										<View style={styles.legendCells}>
+											{[0, 1, 2, 3, 4].map((intensity) => (
+												<SquircleView
+													key={intensity}
+													style={[
+														styles.legendCell,
+														{
+															backgroundColor: getIntensityColor(intensity),
+														},
+													]}
+													cornerSmoothing={1.0}
+												>
+													<View />
+												</SquircleView>
+											))}
+										</View>
 										<Text
 											style={[
-												styles.emptyBadgesSubtext,
-												{ color: colors.textTertiary },
+												styles.legendLabel,
+												{ color: colors.textSecondary },
 											]}
 										>
-											Keep checking in to earn badges!
+											More
 										</Text>
 									</View>
-								)}
-							</View>
+								</View>
+							</LinearGradient>
+						</SquircleView>
+					</View>
 
-							{/* Badge Card Modal */}
-							{selectedBadge && (
-								<BadgeCard
-									visible={!!selectedBadge}
-									onClose={() => setSelectedBadge(null)}
-									badge={selectedBadge}
-								/>
-							)}
-						</>
+					{/* Badges Section - Always visible */}
+					<View style={styles.sectionContainer}>
+						<View style={styles.sectionHeader}>
+							<Text style={[styles.sectionTitle, { color: colors.text }]}>
+								Achievements {isPreviewMode && "(Preview)"}
+							</Text>
+						</View>
+						{badges.length > 0 ? (
+							<View style={styles.badgesContainer}>
+								{badges.map((badge) => {
+									const rarityShadow = {
+										common: "rgba(107, 114, 128, 0.5)",
+										rare: "rgba(59, 130, 246, 0.5)",
+										epic: "rgba(168, 85, 247, 0.5)",
+										legendary: "rgba(245, 158, 11, 0.6)",
+									};
+									return (
+										<TouchableOpacity
+											key={badge.id}
+											style={[
+												styles.badgeCardWrapper,
+												{ shadowColor: rarityShadow[badge.rarity] },
+											]}
+											onPress={() => setSelectedBadge(badge)}
+											activeOpacity={0.9}
+										>
+											<Image
+												source={badge.image}
+												style={styles.badgeImage}
+												resizeMode="cover"
+											/>
+										</TouchableOpacity>
+									);
+								})}
+							</View>
+						) : (
+							<View style={styles.emptyBadgesContainer}>
+								<Text
+									style={[
+										styles.emptyBadgesText,
+										{ color: colors.textSecondary },
+									]}
+								>
+									🏆 No achievements yet
+								</Text>
+								<Text
+									style={[
+										styles.emptyBadgesSubtext,
+										{ color: colors.textTertiary },
+									]}
+								>
+									Keep checking in to earn badges!
+								</Text>
+							</View>
+						)}
+					</View>
+
+					{/* Badge Card Modal - Always available */}
+					{selectedBadge && (
+						<BadgeCard
+							visible={!!selectedBadge}
+							onClose={() => setSelectedBadge(null)}
+							badge={selectedBadge}
+						/>
 					)}
 				</ScrollView>
 			</SafeAreaView>
@@ -1144,8 +1300,18 @@ const styles = StyleSheet.create({
 	},
 	statsGradient: {
 		flexDirection: "row",
+		flexWrap: "wrap",
 		padding: Theme.spacing.lg,
 		alignItems: "center",
+	},
+	previewBanner: {
+		width: "100%",
+		alignItems: "center",
+		marginBottom: Theme.spacing.sm,
+	},
+	previewBannerText: {
+		fontSize: Theme.typography.fontSize.sm,
+		fontWeight: Theme.typography.fontWeight.bold,
 	},
 	statItem: {
 		flex: 1,
@@ -1255,7 +1421,8 @@ const styles = StyleSheet.create({
 	badgesContainer: {
 		flexDirection: "row",
 		flexWrap: "wrap",
-		justifyContent: "space-between",
+		justifyContent: "flex-start",
+		gap: 10,
 	},
 	emptyBadgesContainer: {
 		paddingVertical: Theme.spacing.xl,
@@ -1271,16 +1438,17 @@ const styles = StyleSheet.create({
 		textAlign: "center",
 	},
 	badgeCardWrapper: {
-		width: "48%",
-		marginBottom: Theme.spacing.md,
-	},
-	badgeCard: {
-		width: "100%",
-		aspectRatio: 1,
+		width: 100,
+		height: 140,
+		borderRadius: 10,
 		overflow: "hidden",
+		shadowOffset: { width: 0, height: 4 },
+		shadowOpacity: 0.5,
+		shadowRadius: 10,
+		elevation: 8,
 	},
 	badgeImage: {
-		width: "100%",
-		height: "100%",
+		width: 100,
+		height: 140,
 	},
 });

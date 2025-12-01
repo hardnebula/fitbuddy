@@ -14,3 +14,4 @@ export { ProgressDots } from './ProgressDots';
 export { OnboardingNavigation } from './OnboardingNavigation';
 export { NoGroupView } from './NoGroupView';
 export { PersonalFeed } from './PersonalFeed';
+export { ConfigurationError } from './ConfigurationError';
